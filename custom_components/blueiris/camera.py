@@ -6,6 +6,7 @@ https://home-assistant.io/components/camera.blueiris/
 from abc import ABC
 import asyncio
 import logging
+from pathlib import Path
 from typing import Optional
 
 import aiohttp
@@ -16,8 +17,8 @@ from homeassistant.components.camera import (
     Camera,
     CameraEntityFeature,
 )
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, CONF_VERIFY_SSL
-from homeassistant.core import HomeAssistant
+from homeassistant.const import CONF_NAME, CONF_PASSWORD, CONF_USERNAME, CONF_VERIFY_SSL
+from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.exceptions import (
     HomeAssistantError,
     ServiceValidationError,
@@ -25,6 +26,7 @@ from homeassistant.exceptions import (
 )
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.util import dt as dt_util
 
 from .helpers.const import (
     BI_CAMERA_ATTR_GROUP_CAMERAS,
@@ -36,9 +38,12 @@ from .helpers.const import (
     CONF_SUPPORT_STREAM,
     DOMAIN,
     NOT_AVAILABLE,
+    SERVICE_CURRENT_CAMERA_SNAPSHOT,
     SERVICE_MOVE_TO_PRESET,
     SERVICE_RESET_CAMERA,
+    SERVICE_SNAPSHOT_FILENAME,
     SERVICE_TRIGGER_CAMERA,
+    SNAPSHOT_MEDIA_FOLDER,
 )
 from .api.blue_iris_api import BlueIrisCommandError
 from .models.base_entity import BlueIrisEntity, async_setup_base_entry
@@ -74,12 +79,41 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         {},
         SERVICE_RESET_CAMERA,
     )
+    platform.async_register_entity_service(
+        SERVICE_CURRENT_CAMERA_SNAPSHOT,
+        {
+            vol.Optional(SERVICE_SNAPSHOT_FILENAME): cv.string,
+        },
+        SERVICE_CURRENT_CAMERA_SNAPSHOT,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
 
 
 async def async_unload_entry(_hass, config_entry):
     _LOGGER.debug(f"async_unload_entry {CURRENT_DOMAIN}: {config_entry}")
 
     return True
+
+
+JPEG_MAGIC = b"\xff\xd8"
+
+
+def _snapshot_filename(camera_id: str, filename: Optional[str]) -> str:
+    """Return a safe file name inside the snapshot folder."""
+    name = Path(filename).name if filename else ""
+
+    if not name or name in (".", ".."):
+        name = f"{camera_id.lower()}_current.jpg"
+
+    if not Path(name).suffix:
+        name = f"{name}.jpg"
+
+    return name
+
+
+def _save_image(path: Path, image: bytes):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(image)
 
 
 def get_camera(hass: HomeAssistant, host: str, entity: EntityData):
@@ -217,3 +251,34 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
         except BlueIrisCommandError as ex:
             _LOGGER.error(str(ex))
             raise HomeAssistantError(str(ex)) from ex
+
+    async def current_camera_snapshot(self, filename: Optional[str] = None):
+        """Save the current still image to the local media folder."""
+        image = await self.async_camera_image()
+
+        # async_camera_image does not check the HTTP status, so an error page
+        # (e.g. 401) would come back as the "image"; only accept a JPEG.
+        if not image or not image.startswith(JPEG_MAGIC):
+            raise HomeAssistantError(
+                f"Unable to fetch a snapshot from Blue Iris for {self.name}"
+            )
+
+        name = _snapshot_filename(self.entity.id, filename)
+
+        media_root = self.hass.config.media_dirs.get("local") or self.hass.config.path(
+            "media"
+        )
+        path = Path(media_root) / SNAPSHOT_MEDIA_FOLDER / name
+
+        await self.hass.async_add_executor_job(_save_image, path, image)
+
+        _LOGGER.debug(f"Saved snapshot of {self.name} to {path}")
+
+        return {
+            "camera_id": self.entity.id,
+            "camera_name": self.entity.attributes.get(CONF_NAME, self.name),
+            "saved_filename": name,
+            "saved_path": str(path),
+            "local_snapshot_url": f"/media/local/{SNAPSHOT_MEDIA_FOLDER}/{name}",
+            "generated_at": dt_util.utcnow().isoformat(),
+        }

@@ -103,6 +103,9 @@ SERVICE_SET_LEVEL = "set_level"
 SERVICE_TRIGGER_CAMERA = "trigger_camera"
 SERVICE_MOVE_TO_PRESET = "move_to_preset"
 SERVICE_RESET_CAMERA = "reset_camera"
+SERVICE_CURRENT_CAMERA_SNAPSHOT = "current_camera_snapshot"
+SERVICE_SNAPSHOT_FILENAME = "filename"
+SNAPSHOT_MEDIA_FOLDER = DOMAIN
 
 
 ATTR_ADMIN_PROFILE = "Profile"
