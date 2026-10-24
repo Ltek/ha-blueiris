@@ -45,6 +45,7 @@ def get_sensor(hass: HomeAssistant, host: str, entity: EntityData):
     )
     sensor._attr_options = details.get(ENTITY_SENSOR_OPTIONS)
     sensor._attr_entity_category = details.get(ENTITY_SENSOR_CATEGORY)
+    sensor._attr_state_class = details.get(ENTITY_SENSOR_STATE_CLASS)
 
     return sensor
 

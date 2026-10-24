@@ -120,4 +120,9 @@ class DeviceManager:
             "model": device_model,
         }
 
+        # 'Visit' link on the device page to the camera's own web interface
+        ip = camera.data.get("ip")
+        if isinstance(ip, str) and ip.strip():
+            device_info["configuration_url"] = f"http://{ip.strip()}"
+
         self.set(device_name, device_info)

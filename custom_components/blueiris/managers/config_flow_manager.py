@@ -244,6 +244,7 @@ class ConfigFlowManager:
         config_data = self.config_data
 
         fields = {}
+        section_fields: dict[str, dict] = {}
 
         for category in categories:
             if not category["enabled"]:
@@ -262,13 +263,25 @@ class ConfigFlowManager:
                 ),
             ]
 
-            fields[
+            section_name = CATEGORY_SECTIONS[category["name"]]
+            section_fields.setdefault(section_name, {})[
                 vol.Required(category["name"], default=self._category_mode(category))
             ] = SelectSelector(
                 SelectSelectorConfig(
                     options=mode_options, mode=SelectSelectorMode.DROPDOWN
                 )
             )
+
+        # Empty sections (no MQTT, not admin) are left out
+        for section_name, collapsed in SECTION_COLLAPSED.items():
+            if section_name in section_fields:
+                fields[vol.Required(section_name)] = section(
+                    vol.Schema(section_fields[section_name]), {"collapsed": collapsed}
+                )
+
+        fields[vol.Required(OPTION_SECTION_SERVER)] = section(
+            vol.Schema(self.get_server_fields(config_data)), {"collapsed": True}
+        )
 
         connection_fields = self._get_default_fields(CONFIG_FLOW_OPTIONS)
         connection_fields[vol.Optional(CONF_CLEAR_CREDENTIALS, default=False)] = bool
@@ -312,6 +325,61 @@ class ConfigFlowManager:
             )
 
         return vol.Schema(fields)
+
+    @staticmethod
+    def get_server_fields(config_data: ConfigData) -> dict:
+        return {
+            vol.Optional(option_key, default=config_data.server_sensors[key]): (
+                BooleanSelector()
+            )
+            for key, option_key in CONF_SERVER_SENSORS.items()
+        }
+
+    def get_setup_features_schema(self) -> vol.Schema:
+        """Setup's second page: features that need no camera list."""
+        config_data = self.config_data
+        fields = {
+            vol.Required(OPTION_SECTION_SERVER): section(
+                vol.Schema(self.get_server_fields(config_data)), {"collapsed": False}
+            )
+        }
+
+        if self.api is not None and self.api.data.get("admin", False):
+            auto_reset_fields = {
+                key: value
+                for key, value in self._get_auto_reset_fields(config_data, True).items()
+                if str(key)
+                not in (CONF_AUTO_RESET_NOTIFICATIONS, CONF_AUTO_RESET_APPLY_DEFAULTS)
+            }
+            fields[vol.Required(OPTION_SECTION_AUTO_RESET)] = section(
+                vol.Schema(auto_reset_fields), {"collapsed": False}
+            )
+
+        return vol.Schema(fields)
+
+    @staticmethod
+    def setup_features_options(features_input: dict) -> dict:
+        options = ConfigFlowManager.flatten_sections(features_input)
+
+        for key in (AUTO_RESET_KEY_ATTEMPTS, AUTO_RESET_KEY_INTERVAL):
+            option_key = CONF_AUTO_RESET_DEFAULTS[key]
+            if isinstance(options.get(option_key), float):
+                options[option_key] = int(round(options[option_key]))
+
+        return options
+
+    @staticmethod
+    def flatten_sections(main_input: dict) -> dict:
+        """Page 1 values without their section nesting."""
+        flat = {}
+
+        for key, value in main_input.items():
+            if isinstance(value, dict):
+                flat.update(value)
+            else:
+                flat[key] = value
+
+        return flat
 
     @staticmethod
     def _get_auto_reset_fields(config_data: ConfigData, notifications: bool) -> dict:
@@ -394,15 +462,11 @@ class ConfigFlowManager:
         items. Categories hidden on page 1 (no MQTT / not admin) keep their
         saved value.
         """
-        result = {}
+        flat = ConfigFlowManager.flatten_sections(main_input)
+        category_names = {category["name"] for category in categories}
 
-        for key, value in main_input.items():
-            if key in (
-                OPTION_SECTION_CONNECTION,
-                OPTION_SECTION_GENERAL,
-                OPTION_SECTION_AUTO_RESET,
-            ):
-                result.update(value)
+        # Everything except the category modes is a setting as entered
+        result = {k: v for k, v in flat.items() if k not in category_names}
 
         # Number selectors return floats; keep whole numbers as int
         for key in (AUTO_RESET_KEY_ATTEMPTS, AUTO_RESET_KEY_INTERVAL):
@@ -420,7 +484,7 @@ class ConfigFlowManager:
                     result[name] = category["checked"]
                 continue
 
-            mode = main_input.get(name, OPTION_MODE_ALL)
+            mode = flat.get(name, OPTION_MODE_ALL)
 
             if mode == OPTION_MODE_NONE:
                 result[name] = []
@@ -635,6 +699,9 @@ class ConfigFlowManager:
                     f"Failed to login BlueIris ({config_data.host}) due to invalid credentials"
                 )
                 errors = {"base": "invalid_admin_credentials"}
+
+            # Kept for the setup flow's features page (admin-only settings)
+            self.api = api
 
             system_name = api.data.get("system name")
             if system_name is not None:

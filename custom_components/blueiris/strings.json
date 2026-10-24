@@ -11,6 +11,33 @@
           "password": "Password",
           "ssl": "Is SSL"
         }
+      },
+      "features": {
+        "title": "Blue Iris features",
+        "description": "Pick the features to set up. Cameras, sensors per camera and the rest are set in Configure afterwards.",
+        "sections": {
+          "server": {
+            "name": "Server sensors",
+            "description": "Blue Iris server status shown on the server device.",
+            "data": {
+              "server_sensor_cpu": "CPU",
+              "server_sensor_memory": "Memory",
+              "server_sensor_disks": "Free space per drive",
+              "server_sensor_warnings": "Warnings",
+              "server_sensor_connections": "Connections"
+            }
+          },
+          "auto_reset": {
+            "name": "Auto reset defaults",
+            "description": "Used by every camera that has not been changed on its own device page. Changing a camera's Auto Reset entities overrides these for that camera.",
+            "data": {
+              "auto_reset_default_enabled": "Auto reset on by default",
+              "auto_reset_default_delay": "Delay before the first reset",
+              "auto_reset_default_attempts": "Attempts",
+              "auto_reset_default_interval": "Interval between resets"
+            }
+          }
+        }
       }
     },
     "error": {
@@ -24,18 +51,47 @@
       "blue_iris_additional_settings": {
         "title": "Blue Iris options",
         "description": "Pick which components to create. **All** includes cameras added to Blue Iris later, **None** turns the section off, **Choose…** opens a checkbox list on the next page.",
-        "data": {
-          "allowed_camera": "Camera components",
-          "allowed_problem_sensor": "Problem sensors (no signal / offline / stalled)",
-          "allowed_motion_sensor": "Motion sensors",
-          "allowed_connectivity_sensor": "Connectivity sensors",
-          "allowed_audio_sensor": "Audio sensors",
-          "allowed_dio_sensor": "DIO sensors (digital input triggers)",
-          "allowed_external_sensor": "External sensors",
-          "allowed_profile": "Profile switches",
-          "allowed_schedule": "Schedule switches"
-        },
         "sections": {
+          "cameras": {
+            "name": "Cameras",
+            "data": {
+              "allowed_camera": "Camera components",
+              "allowed_problem_sensor": "Problem sensors (no signal / offline / stalled)"
+            },
+            "data_description": {
+              "allowed_problem_sensor": "Cameras on battery or solar power, or that only stream when motion is detected, may need Problem Detection turned off: use the Problem Detection switch on that camera's device page (Configuration). It stops the Problem sensor and auto reset for that camera only, so this section can stay on All. Also turn off that camera's Watchdog in Blue Iris."
+            }
+          },
+          "mqtt_sensors": {
+            "name": "MQTT sensors",
+            "description": "Shown when the MQTT integration is set up.",
+            "data": {
+              "allowed_motion_sensor": "Motion sensors",
+              "allowed_connectivity_sensor": "Connectivity sensors",
+              "allowed_audio_sensor": "Audio sensors",
+              "allowed_dio_sensor": "DIO sensors (digital input triggers)",
+              "allowed_external_sensor": "External sensors"
+            }
+          },
+          "profiles_schedules": {
+            "name": "Profiles and schedules",
+            "description": "Shown for an admin user.",
+            "data": {
+              "allowed_profile": "Profile switches",
+              "allowed_schedule": "Schedule switches"
+            }
+          },
+          "server": {
+            "name": "Server sensors",
+            "description": "Blue Iris server status shown on the server device.",
+            "data": {
+              "server_sensor_cpu": "CPU",
+              "server_sensor_memory": "Memory",
+              "server_sensor_disks": "Free space per drive",
+              "server_sensor_warnings": "Warnings",
+              "server_sensor_connections": "Connections"
+            }
+          },
           "connection": {
             "name": "Connection",
             "description": "Server and login. A username and password with admin rights are needed for profiles, schedules and Reset Camera.",
@@ -76,9 +132,6 @@
               "auto_reset_notifications": "One notification per camera with the problem and the outcome of the resets. Same as the server's Auto Reset Notifications switch."
             }
           }
-        },
-        "data_description": {
-          "allowed_problem_sensor": "Cameras on battery or solar power, or that only stream when motion is detected, may need Problem Detection turned off: use the Problem Detection switch on that camera's device page (Configuration). It stops the Problem sensor and auto reset for that camera only, so this section can stay on All. Also turn off that camera's Watchdog in Blue Iris."
         }
       },
       "select_items": {

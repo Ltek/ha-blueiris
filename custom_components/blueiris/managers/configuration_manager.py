@@ -72,6 +72,11 @@ class ConfigManager:
 
         result.support_stream = options.get(CONF_SUPPORT_STREAM, False)
 
+        result.server_sensors = {
+            key: bool(options.get(option_key, True))
+            for key, option_key in CONF_SERVER_SENSORS.items()
+        }
+
         result.auto_reset_defaults = clean_auto_reset_values(
             {
                 key: options.get(option_key)

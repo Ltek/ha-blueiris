@@ -1,5 +1,13 @@
 # Changelog
 
+## v2026.10.24.32
+
+- Versions now follow `YYYY.MM.DD.BUILD` (build date + running build number); this is build 32, after 1.0.31
+- Add server status sensors: CPU, Memory, free space per drive, Warnings, Connections; each can be turned off in Configure -> Server sensors
+- Setup gets a second page, *Blue Iris features*, with the Server sensors and the Auto reset defaults
+- Options page 1 grouped into sections: Cameras, MQTT sensors, Profiles and schedules, Server sensors
+- Camera IP shown as an attribute, and the camera's device page links to its web interface
+
 ## 1.0.31
 
 - Add Problem Detection switch per camera (on by default). Turn it off for battery, solar or motion-only cameras: the Problem sensor stays off (`problem_detection: false`), the camera is left out of the Alerts sensor and auto reset skips it. Applies at once, kept across restarts. The options' Problem sensors section explains when to use it
