@@ -3,6 +3,11 @@
 ## 1.0.24
 
 - Add `blueiris.reset_camera` service: resets (reconnects) a camera through the JSON API (`camconfig` with `reset`). Requires an admin user; raises an error with Blue Iris' reason on failure
+- Add Connection Health sensor (`connected`, `server_unreachable`, `auth_failed`, `error`) with last success time and consecutive failure count
+- Add Uptime sensor (diagnostic) from Blue Iris' status
+- Add `blueiris.current_camera_snapshot` service: saves the current still to `media/blueiris/` and returns its path and `/media/local` URL
+- Add `H264 TS` stream type option (`temp.ts`); fix the cast script generator's stream URL
+- Add diagnostics download with credentials, host, session and location redacted
 
 ## 1.0.23
 
