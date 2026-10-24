@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current version: **1.0.27** · [Changelog](CHANGELOG.md)
+Current version: **1.0.28** · [Changelog](CHANGELOG.md)
 
 ## Features
 
@@ -14,6 +14,7 @@ Current version: **1.0.27** · [Changelog](CHANGELOG.md)
 - **Streams**: H264 (HLS), H264 TS or MJPEG, optionally through the Home Assistant stream component
 - **Problem binary sensor** per camera: on when Blue Iris reports no signal, offline or a stalled stream
 - **Reset button** per camera
+- **Auto reset** per camera: resets cameras whose Problem sensor stays on, with per-camera delay / attempts / interval you can change live
 - **Binary sensors** per camera from MQTT: Motion, Audio, Connectivity, DIO, External, plus a server-level Alerts sensor
 - **Sensors** for the server: Connection Health and Uptime
 - **Switches** for Blue Iris profiles and schedules (admin user required)
@@ -25,6 +26,7 @@ Current version: **1.0.27** · [Changelog](CHANGELOG.md)
 
 - Problem binary sensor per camera (no signal / offline / stalled), computed from Blue Iris' own camera status on every poll and unavailable while the server is down or just started, so it never acts on stale data
 - Reset button per camera
+- Auto reset: per-camera switch plus Delay, Attempts and Interval numbers, changed live without a reload and kept across restarts; persistent notification per camera and a `blueiris_auto_reset` event
 - `blueiris.reset_camera` service: resets (reconnects) a frozen or "No signal" camera, the same as Blue Iris' Reset command. Raises an error with Blue Iris' reason when it fails
 - `blueiris.current_camera_snapshot` service: saves the current still to `media/blueiris/` and returns a `/media/local` URL for notifications
 - Connection Health sensor: `connected`, `server_unreachable`, `auth_failed` or `error`, so automations can ignore stale camera data while the server is down
@@ -206,6 +208,58 @@ A camera that keeps sending the same frame at a normal frame rate cannot be dete
 ###### Button - Reset - Per camera (admin user)
 
 Resets (reconnects) the camera, the same as the Reset Camera service. Created for cameras that have a camera entity.
+
+###### Auto reset (admin user)
+
+Resets a camera automatically when its Problem sensor stays on. Off by default; turn it on per camera.
+
+Settings are entities on each camera's device (Configuration section). Changes apply from the next poll (within 30 s) without a reload, and are kept across restarts.
+
+| Entity                                | Default | Range         | Meaning                                    |
+| ------------------------------------- | ------- | ------------- | ------------------------------------------ |
+| `switch.<camera>_auto_reset`          | Off     | -             | Auto reset this camera                     |
+| `number.<camera>_auto_reset_delay`    | 2 min   | 0.5 - 60 min  | How long the problem must last first       |
+| `number.<camera>_auto_reset_attempts` | 3       | 1 - 10        | Resets before giving up                    |
+| `number.<camera>_auto_reset_interval` | 90 s    | 30 - 900 s    | Wait after each reset before the next one  |
+
+On the server device:
+
+| Entity                               | Meaning                                                            |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| `switch.<server>_auto_reset`         | Master switch; off pauses auto reset for every camera               |
+| `switch.<server>_auto_reset_notifications` | Persistent notifications on / off                            |
+
+How it works, on every successful poll:
+
+1. Problem for at least *Delay* -> reset; then up to *Attempts* resets, *Interval* apart
+2. Problem clears -> **recovered**
+3. Still on *Interval* after the last attempt -> **gave up**; no more resets until the problem clears and comes back
+
+It pauses while Connection Health is not `connected` and for the first 5 minutes of Blue Iris uptime, so an outage or a Blue Iris restart never triggers resets. Progress is on the Problem sensor (`auto_reset_state`: off, paused, idle, waiting, resetting, gave_up; `auto_reset_attempts`; `auto_reset_last`). After a Home Assistant restart the count starts over.
+
+Each camera gets one persistent notification (camera, problem, since, then the outcome), updated in place.
+
+Every step also fires the event `blueiris_auto_reset` with `type` (`reset`, `recovered`, `gave_up`), `camera_id`, `camera_name`, `entity_id` (the camera entity), `reason`, `since`, `attempt`, `max_attempts` and `error`. For a phone alert with a snapshot when a camera gives up:
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: blueiris_auto_reset
+    event_data:
+      type: gave_up
+actions:
+  - action: blueiris.current_camera_snapshot
+    target:
+      entity_id: "{{ trigger.event.data.entity_id }}"
+    response_variable: snap
+    continue_on_error: true
+  - action: notify.mobile_app_phone
+    data:
+      title: "Blue Iris: {{ trigger.event.data.camera_name }} still down"
+      message: "{{ trigger.event.data.reason }} after {{ trigger.event.data.attempt }} resets"
+```
+
+Blue Iris has its own per-camera Watchdog (camera properties) for signal loss. If it is on, give it a shorter timeout than the auto reset delay, or turn one of them off for that camera.
 
 ###### Camera
 

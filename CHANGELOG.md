@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.28
+
+- Add auto reset: resets a camera when its Problem sensor stays on. Per camera a switch (off by default) and Delay / Attempts / Interval numbers; on the server a master switch and a notifications switch. Changes apply live without a reload and are stored across restarts
+- Pauses while the server is not connected and for 5 minutes after Blue Iris starts
+- One persistent notification per camera (camera, problem, since, outcome), and a `blueiris_auto_reset` event (`reset`, `recovered`, `gave_up`) for alerts
+- Problem sensor shows `auto_reset_state`, `auto_reset_attempts` and `auto_reset_last`
+
 ## 1.0.27
 
 - Fix entity IDs on newer Home Assistant versions, which built new entity IDs from the device name plus the entity name (e.g. `binary_sensor.bi5_driveway_84_driveway_bi5_driveway_84_problem`). New entities now get `binary_sensor.bi5_driveway_84_problem`, and entities already created with the doubled ID are renamed automatically. IDs you changed yourself are left alone

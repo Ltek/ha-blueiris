@@ -20,6 +20,7 @@ from ..api.blue_iris_api import BlueIrisApi
 from ..helpers.advanced_configurations_generator import AdvancedConfigurationGenerator
 from ..helpers.const import *
 from ..models.config_data import ConfigData
+from .auto_reset_manager import AutoResetManager
 from .configuration_manager import ConfigManager
 from .device_manager import DeviceManager
 from .entity_manager import EntityManager
@@ -44,6 +45,7 @@ class BlueIrisHomeAssistant:
         self._entity_manager = None
         self._device_manager = None
         self._storage_manager = None
+        self._auto_reset_manager: Optional[AutoResetManager] = None
         self._config_generator: Optional[AdvancedConfigurationGenerator] = None
 
         self._config_manager = ConfigManager(password_manager)
@@ -59,6 +61,10 @@ class BlueIrisHomeAssistant:
     @property
     def device_manager(self) -> DeviceManager:
         return self._device_manager
+
+    @property
+    def auto_reset_manager(self) -> Optional[AutoResetManager]:
+        return self._auto_reset_manager
 
     @property
     def entity_registry(self) -> EntityRegistry:
@@ -89,6 +95,7 @@ class BlueIrisHomeAssistant:
             self._entity_manager = EntityManager(self._hass, self)
             self._device_manager = DeviceManager(self._hass, self)
             self._config_generator = AdvancedConfigurationGenerator(self._hass, self)
+            self._auto_reset_manager = AutoResetManager(self._hass, self)
 
             self._entity_registry = async_get(self._hass)
 
@@ -115,6 +122,10 @@ class BlueIrisHomeAssistant:
             _LOGGER.error(f"Failed to async_init, error: {ex}, line: {line_number}")
 
     async def _async_init(self):
+        await self._auto_reset_manager.async_load(
+            self._config_manager.config_entry.entry_id
+        )
+
         await self._hass.config_entries.async_forward_entry_setups(self._config_manager.config_entry, list(SIGNALS.keys()))
 
         self._is_initialized = True
@@ -191,6 +202,9 @@ class BlueIrisHomeAssistant:
             self._is_updating = True
 
             await self._api.async_update()
+
+            self.entity_manager.update_camera_problems()
+            await self._auto_reset_manager.async_evaluate()
 
             self.device_manager.update()
             self.entity_manager.update()
