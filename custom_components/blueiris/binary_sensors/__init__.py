@@ -5,10 +5,12 @@ from ..models.entity_data import EntityData
 from .audio import BlueIrisAudioBinarySensor
 from .base import BlueIrisBinarySensor
 from .main import BlueIrisMainBinarySensor
+from .problem import BlueIrisProblemBinarySensor
 
 BINARY_SENSOR_TYPES = {
     SENSOR_AUDIO_NAME: BlueIrisAudioBinarySensor,
     SENSOR_MAIN_NAME: BlueIrisMainBinarySensor,
+    SENSOR_PROBLEM_NAME: BlueIrisProblemBinarySensor,
 }
 
 CURRENT_DOMAIN = DOMAIN_BINARY_SENSOR

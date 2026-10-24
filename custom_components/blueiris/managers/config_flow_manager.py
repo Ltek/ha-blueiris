@@ -153,11 +153,21 @@ class ConfigFlowManager:
             camera_list, CAMERA_IS_SYSTEM
         )
 
+        supported_physical_camera = self._get_camera_options(
+            camera_list, CAMERA_IS_PHYSICAL
+        )
+
         supported_profile = self._get_profile_options(profiles_list)
         supported_schedule = self._get_schedule_options(schedules_list)
 
         categories = [
             (CONF_ALLOWED_CAMERA, config_data.allowed_camera, supported_camera, True),
+            (
+                CONF_ALLOWED_PROBLEM_SENSOR,
+                config_data.allowed_problem_sensor,
+                supported_physical_camera,
+                True,
+            ),
             (
                 CONF_ALLOWED_MOTION_SENSOR,
                 config_data.allowed_motion_sensor,
@@ -513,6 +523,8 @@ class ConfigFlowManager:
                 skip = camera.is_system
             elif include == CAMERA_HAS_AUDIO:
                 skip = not camera.has_audio or camera.is_system
+            elif include == CAMERA_IS_PHYSICAL:
+                skip = not camera.is_physical
             else:
                 skip = False
 

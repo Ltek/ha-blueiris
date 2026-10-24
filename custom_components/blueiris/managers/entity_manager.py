@@ -1,8 +1,10 @@
+from datetime import datetime, timezone
 import logging
 import sys
 from typing import Optional
 
 from homeassistant.components.camera import DEFAULT_CONTENT_TYPE
+from homeassistant.components.button import ButtonDeviceClass
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.components.stream import DOMAIN as DOMAIN_STREAM
@@ -40,6 +42,29 @@ def _parse_uptime(value) -> Optional[int]:
     return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
 
+def get_camera_problem(camera: CameraData) -> Optional[str]:
+    """Return why a camera needs attention, or None when it is fine.
+
+    Disabled and paused cameras are left alone on purpose.
+    """
+    data = camera.data
+
+    if not data.get("isEnabled", True) or data.get("isPaused", False):
+        return None
+
+    if data.get("isNoSignal", False):
+        return PROBLEM_NO_SIGNAL
+
+    if not camera.is_online:
+        return PROBLEM_OFFLINE
+
+    fps = data.get("FPS")
+    if isinstance(fps, (int, float)) and fps < PROBLEM_MIN_FPS:
+        return PROBLEM_STALLED
+
+    return None
+
+
 def _get_camera_binary_sensor_key(topic, event_type):
     key = f"{topic}_{event_type}".lower()
 
@@ -59,6 +84,7 @@ class EntityManager:
         self.domain_component_manager = {}
         self.entities = {}
         self.mqtt_states = {}
+        self.problem_since = {}
 
     @property
     def entity_registry(self) -> EntityRegistry:
@@ -194,9 +220,13 @@ class EntityManager:
 
         self.generate_server_sensors(system_device_name)
 
+        problem_data_fresh = self.is_problem_data_fresh()
+
         mqtt_binary_sensors = []
         for camera in available_camera:
             self.generate_camera_component(camera)
+            self.generate_camera_problem_sensor(camera, problem_data_fresh)
+            self.generate_camera_reset_button(camera, is_admin)
             current_mqtt_binary_sensors = self.generate_camera_binary_sensors(camera)
 
             mqtt_binary_sensors.extend(current_mqtt_binary_sensors)
@@ -440,6 +470,106 @@ class EntityManager:
         }
 
         return entity
+
+    def is_problem_data_fresh(self) -> bool:
+        """Only judge cameras on a successful poll of a settled server."""
+        if self.api.connection_state != CONNECTION_STATE_CONNECTED:
+            return False
+
+        uptime = _parse_uptime(self.api.status.get("uptime"))
+
+        return uptime is None or uptime >= PROBLEM_STARTUP_GRACE
+
+    def get_camera_problem_sensor(
+        self, camera: CameraData, data_fresh: bool
+    ) -> EntityData:
+        device_name = self.device_manager.get_camera_device_name(camera)
+        entity_name = f"{self.integration_title} {camera.name} {SENSOR_PROBLEM_NAME}"
+        unique_id = f"{DOMAIN}-{DOMAIN_BINARY_SENSOR}-{entity_name}"
+
+        problem = get_camera_problem(camera) if data_fresh else None
+
+        if problem is None:
+            if data_fresh:
+                self.problem_since.pop(camera.id, None)
+        elif camera.id not in self.problem_since:
+            self.problem_since[camera.id] = datetime.now(timezone.utc)
+
+        since = self.problem_since.get(camera.id)
+        data = camera.data
+
+        attributes = {
+            ATTR_FRIENDLY_NAME: entity_name,
+            "camera_id": camera.id,
+            "reason": problem,
+            "since": None if since is None else since.isoformat(),
+            "fps": data.get("FPS"),
+            "is_online": camera.is_online,
+            "no_signal": data.get("isNoSignal"),
+            "no_signal_count": data.get("nNoSignal"),
+            "error": data.get("error"),
+        }
+
+        entity = EntityData()
+
+        entity.id = camera.id
+        entity.unique_id = unique_id
+        entity.name = entity_name
+        entity.state = problem is not None
+        entity.attributes = attributes
+        entity.icon = PROBLEM_ICON
+        entity.device_name = device_name
+        # Lets the server's Alerts sensor list cameras with a problem
+        entity.event = SENSOR_PROBLEM_NAME
+        entity.type = SENSOR_PROBLEM_NAME
+        entity.binary_sensor_device_class = BinarySensorDeviceClass.PROBLEM
+        entity.details = {ENTITY_AVAILABLE: data_fresh}
+
+        return entity
+
+    def generate_camera_problem_sensor(self, camera: CameraData, data_fresh: bool):
+        try:
+            allowed = self.config_data.allowed_problem_sensor
+
+            if not camera.is_physical:
+                return
+
+            if allowed is not None and camera.id not in allowed:
+                return
+
+            entity = self.get_camera_problem_sensor(camera, data_fresh)
+            self.set_entity(DOMAIN_BINARY_SENSOR, entity.name, entity)
+        except Exception as ex:
+            self.log_exception(ex, f"Failed to generate problem sensor for {camera}")
+
+    def generate_camera_reset_button(self, camera: CameraData, is_admin: bool):
+        try:
+            allowed_camera = self.config_data.allowed_camera
+
+            # Reset needs admin rights and a real camera connection
+            if not is_admin or not camera.is_physical:
+                return
+
+            if allowed_camera is not None and camera.id not in allowed_camera:
+                return
+
+            device_name = self.device_manager.get_camera_device_name(camera)
+            entity_name = f"{self.integration_title} {camera.name} {BUTTON_RESET_NAME}"
+
+            entity = EntityData()
+
+            entity.id = camera.id
+            entity.unique_id = f"{DOMAIN}-{DOMAIN_BUTTON}-{entity_name}"
+            entity.name = entity_name
+            entity.attributes = {ATTR_FRIENDLY_NAME: entity_name}
+            entity.icon = RESET_ICON
+            entity.device_name = device_name
+            entity.type = BUTTON_RESET_NAME
+            entity.details = {ENTITY_BUTTON_DEVICE_CLASS: ButtonDeviceClass.RESTART}
+
+            self.set_entity(DOMAIN_BUTTON, entity.name, entity)
+        except Exception as ex:
+            self.log_exception(ex, f"Failed to generate reset button for {camera}")
 
     def generate_server_sensors(self, system_device_name):
         try:

@@ -26,6 +26,7 @@
         "description": "Pick which components to create. **All** includes cameras added to Blue Iris later, **None** turns the section off, **Choose…** opens a checkbox list on the next page.",
         "data": {
           "allowed_camera": "Camera components",
+          "allowed_problem_sensor": "Problem sensors (no signal / offline / stalled)",
           "allowed_motion_sensor": "Motion sensors",
           "allowed_connectivity_sensor": "Connectivity sensors",
           "allowed_audio_sensor": "Audio sensors",
@@ -64,6 +65,12 @@
         "sections": {
           "allowed_camera": {
             "name": "Camera components",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_problem_sensor": {
+            "name": "Problem sensors",
             "data": {
               "items": "Items"
             }

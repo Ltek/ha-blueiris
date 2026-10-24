@@ -24,6 +24,11 @@ class CameraData:
         self.is_system = self.id in SYSTEM_CAMERA_ID
         self.type = camera.get(BI_ATTR_TYPE)
 
+    @property
+    def is_physical(self) -> bool:
+        """A real camera with its own connection (not a group or system view)."""
+        return not self.is_group and not self.is_system
+
     def __repr__(self):
         obj = {
             CONF_NAME: self.name,

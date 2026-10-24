@@ -20,6 +20,7 @@ class ConfigData:
     allowed_connectivity_sensor: list
     allowed_dio_sensor: list
     allowed_external_sensor: list
+    allowed_problem_sensor: list
     stream_type: str
     support_stream: bool
 
@@ -43,6 +44,7 @@ class ConfigData:
         self.allowed_connectivity_sensor = []
         self.allowed_dio_sensor = []
         self.allowed_external_sensor = []
+        self.allowed_problem_sensor = []
 
     @property
     def protocol(self):
@@ -76,6 +78,7 @@ class ConfigData:
             CONF_ALLOWED_CONNECTIVITY_SENSOR: self.allowed_connectivity_sensor,
             CONF_ALLOWED_DIO_SENSOR: self.allowed_dio_sensor,
             CONF_ALLOWED_EXTERNAL_SENSOR: self.allowed_external_sensor,
+            CONF_ALLOWED_PROBLEM_SENSOR: self.allowed_problem_sensor,
             CONF_STREAM_TYPE: self.stream_type,
             CONF_SUPPORT_STREAM: self.support_stream,
         }
