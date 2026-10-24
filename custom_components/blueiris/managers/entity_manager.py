@@ -554,7 +554,11 @@ class EntityManager:
                 continue
 
             seen.add(camera.id)
-            problem = get_camera_problem(camera)
+            problem = (
+                get_camera_problem(camera)
+                if self._problem_detection(camera.id)
+                else None
+            )
 
             if problem is None:
                 self.camera_problems.pop(camera.id, None)
@@ -572,6 +576,10 @@ class EntityManager:
             if camera_id not in seen:
                 self.camera_problems.pop(camera_id, None)
                 self.problem_since.pop(camera_id, None)
+
+    def _problem_detection(self, camera_id: str) -> bool:
+        auto_reset = self.ha.auto_reset_manager
+        return auto_reset is None or auto_reset.problem_detection(camera_id)
 
     def is_problem_sensor_allowed(self, camera: CameraData) -> bool:
         allowed = self.config_data.allowed_problem_sensor
@@ -591,6 +599,7 @@ class EntityManager:
         attributes = {
             ATTR_FRIENDLY_NAME: entity_name,
             "camera_id": camera.id,
+            ATTR_PROBLEM_DETECTION: self._problem_detection(camera.id),
             "reason": problem,
             "since": None if since is None else since.isoformat(),
             "fps": data.get("FPS"),
@@ -628,6 +637,20 @@ class EntityManager:
 
             entity = self.get_camera_problem_sensor(camera)
             self.set_entity(DOMAIN_BINARY_SENSOR, entity.name, entity)
+
+            device_name = self.device_manager.get_camera_device_name(camera)
+            name = f"{self.integration_title} {camera.name} {PROBLEM_DETECTION_NAME}"
+            switch = self._config_entity(
+                DOMAIN_SWITCH,
+                name,
+                camera.id,
+                device_name,
+                PROBLEM_DETECTION_SWITCH,
+                self._problem_detection(camera.id),
+                PROBLEM_DETECTION_ICON,
+                {},
+            )
+            self.set_entity(DOMAIN_SWITCH, name, switch)
         except Exception as ex:
             self.log_exception(ex, f"Failed to generate problem sensor for {camera}")
 

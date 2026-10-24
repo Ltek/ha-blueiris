@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.31
+
+- Add Problem Detection switch per camera (on by default). Turn it off for battery, solar or motion-only cameras: the Problem sensor stays off (`problem_detection: false`), the camera is left out of the Alerts sensor and auto reset skips it. Applies at once, kept across restarts. The options' Problem sensors section explains when to use it
+
 ## 1.0.30
 
 - Add Log Level select on the server device: shows the log level in effect and changes it immediately, without a reload; not saved, so a restart goes back to the startup level

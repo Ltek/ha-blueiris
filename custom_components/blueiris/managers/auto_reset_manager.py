@@ -47,6 +47,7 @@ class AutoResetManager:
             AUTO_RESET_KEY_ENABLED: True,
             AUTO_RESET_KEY_NOTIFICATIONS: True,
             AUTO_RESET_KEY_CAMERAS: {},
+            KEY_PROBLEM_DETECTION_OFF: [],
         }
 
     async def async_load(self, entry_id: str):
@@ -68,6 +69,12 @@ class AutoResetManager:
                     for cam_id, values in cameras.items()
                     if isinstance(values, dict)
                 }
+
+            detection_off = stored.get(KEY_PROBLEM_DETECTION_OFF)
+            if isinstance(detection_off, list):
+                settings[KEY_PROBLEM_DETECTION_OFF] = [
+                    str(cam_id) for cam_id in detection_off
+                ]
 
         self._settings = settings
 
@@ -114,6 +121,19 @@ class AutoResetManager:
         cameras[camera_id] = self._clean_camera_settings(overrides)
         self._save()
 
+    def problem_detection(self, camera_id: str) -> bool:
+        return camera_id not in self._settings[KEY_PROBLEM_DETECTION_OFF]
+
+    def set_problem_detection(self, camera_id: str, enabled: bool):
+        off = [c for c in self._settings[KEY_PROBLEM_DETECTION_OFF] if c != camera_id]
+        if not enabled:
+            off.append(camera_id)
+
+        self._settings[KEY_PROBLEM_DETECTION_OFF] = off
+        # Turning detection off ends any reset cycle without a 'recovered'
+        self._runtime.pop(camera_id, None)
+        self._save()
+
     def reset_cameras_to_defaults(self):
         """Forget every camera's own values so all follow the defaults."""
         _LOGGER.info("Auto reset: all cameras set back to the defaults")
@@ -133,7 +153,7 @@ class AutoResetManager:
         settings = self.camera_settings(camera_id)
         rt = self._runtime.get(camera_id)
 
-        if not settings[AUTO_RESET_KEY_ENABLED]:
+        if not settings[AUTO_RESET_KEY_ENABLED] or not self.problem_detection(camera_id):
             state = AUTO_RESET_STATE_OFF
         elif not self.enabled or not self._ha.entity_manager.problem_data_fresh:
             state = AUTO_RESET_STATE_PAUSED
@@ -170,7 +190,9 @@ class AutoResetManager:
 
             settings = self.camera_settings(camera.id)
 
-            if not settings[AUTO_RESET_KEY_ENABLED]:
+            if not settings[AUTO_RESET_KEY_ENABLED] or not self.problem_detection(
+                camera.id
+            ):
                 self._runtime.pop(camera.id, None)
                 continue
 

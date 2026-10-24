@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current version: **1.0.30** · [Changelog](CHANGELOG.md)
+Current version: **1.0.31** · [Changelog](CHANGELOG.md)
 
 ## Features
 
@@ -196,6 +196,7 @@ Disabled and paused cameras never count as a problem. The sensor is **unavailabl
 | Attributes      |
 | --------------- |
 | camera_id       |
+| problem_detection |
 | reason          |
 | since           |
 | fps             |
@@ -205,6 +206,8 @@ Disabled and paused cameras never count as a problem. The sensor is **unavailabl
 | error           |
 
 A camera that keeps sending the same frame at a normal frame rate cannot be detected.
+
+**Problem Detection switch** (`switch.<camera>_problem_detection`, Configuration section of the camera's device, on by default). Turn it off for cameras on battery or solar power, or that only stream when motion is detected: they look "down" most of the time by design, and reconnect attempts can wake them and drain the battery. While it is off, the camera's Problem sensor stays `off` with `problem_detection: false`, it is left out of the Alerts sensor, and auto reset never touches it. Takes effect at once, is kept across restarts and is not changed by *Set all cameras back to these defaults*. Also turn off that camera's Watchdog in Blue Iris.
 
 ###### Button - Reset - Per camera (admin user)
 
