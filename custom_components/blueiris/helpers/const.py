@@ -208,11 +208,18 @@ AUTO_RESET_NOTIFICATIONS_ICON = "mdi:message-alert"
 AUTO_RESET_SERVER_SWITCH = "AutoResetServerSwitch"
 AUTO_RESET_CAMERA_SWITCH = "AutoResetCameraSwitch"
 AUTO_RESET_NUMBER = "AutoResetNumber"
+PROBLEM_DETECTION_SWITCH = "ProblemDetectionSwitch"
+PROBLEM_DETECTION_NAME = "Problem Detection"
+PROBLEM_DETECTION_ICON = "mdi:cctv"
+ATTR_PROBLEM_DETECTION = "problem_detection"
 AUTO_RESET_SETTING = "auto_reset_setting"
 
 AUTO_RESET_KEY_ENABLED = "enabled"
 AUTO_RESET_KEY_NOTIFICATIONS = "notifications"
 AUTO_RESET_KEY_CAMERAS = "cameras"
+# Camera ids with Problem Detection turned off (kept apart from the auto
+# reset values, so "Set all cameras back to these defaults" leaves it alone)
+KEY_PROBLEM_DETECTION_OFF = "problem_detection_off"
 AUTO_RESET_KEY_DELAY = "delay"
 AUTO_RESET_KEY_ATTEMPTS = "attempts"
 AUTO_RESET_KEY_INTERVAL = "interval"

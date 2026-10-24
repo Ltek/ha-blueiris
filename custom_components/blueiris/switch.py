@@ -34,7 +34,11 @@ async def async_unload_entry(_hass, config_entry):
 
 
 def get_switch(hass: HomeAssistant, host: str, entity: EntityData):
-    if entity.type in (AUTO_RESET_SERVER_SWITCH, AUTO_RESET_CAMERA_SWITCH):
+    if entity.type in (
+        AUTO_RESET_SERVER_SWITCH,
+        AUTO_RESET_CAMERA_SWITCH,
+        PROBLEM_DETECTION_SWITCH,
+    ):
         switch = BlueIrisAutoResetSwitch()
     else:
         switch = BlueIrisProfileAndScheduleSwitch()
@@ -45,7 +49,8 @@ def get_switch(hass: HomeAssistant, host: str, entity: EntityData):
 
 
 class BlueIrisAutoResetSwitch(SwitchEntity, BlueIrisEntity):
-    """Auto reset on/off: per camera, or server-wide (master / notifications).
+    """Per camera: Problem Detection or Auto Reset on/off.
+    Server-wide: auto reset master switch and notifications.
 
     Takes effect on the next poll; no reload needed.
     """
@@ -68,11 +73,18 @@ class BlueIrisAutoResetSwitch(SwitchEntity, BlueIrisEntity):
 
     async def _async_set(self, value: bool):
         auto_reset = self.ha.auto_reset_manager
-        key = self.entity.details[AUTO_RESET_SETTING]
 
-        if self.entity.type == AUTO_RESET_CAMERA_SWITCH:
+        if self.entity.type == PROBLEM_DETECTION_SWITCH:
+            auto_reset.set_problem_detection(self.entity.id, value)
+            # Re-judge cameras from the last poll so the sensor follows now
+            self.entity_manager.update_camera_problems()
+
+        elif self.entity.type == AUTO_RESET_CAMERA_SWITCH:
+            key = self.entity.details[AUTO_RESET_SETTING]
             auto_reset.set_camera_value(self.entity.id, key, value)
+
         else:
+            key = self.entity.details[AUTO_RESET_SETTING]
             auto_reset.set_flag(key, value)
 
         self.entity.state = value
