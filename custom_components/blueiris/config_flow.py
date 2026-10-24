@@ -6,6 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback
 
 from .helpers.const import *
+from .helpers import get_ha
 from .managers.config_flow_manager import ConfigFlowManager
 from .models import AlreadyExistsError, LoginError
 
@@ -159,11 +160,22 @@ class DomainOptionsFlowHandler(config_entries.OptionsFlow):
         options_input = self._config_flow.build_options_input(
             self._categories, self._main_input, items_input
         )
+        # An action, not a setting: never stored in the options
+        apply_defaults = options_input.pop(CONF_AUTO_RESET_APPLY_DEFAULTS, False)
 
         try:
             options = await self._config_flow.update_options(
                 options_input, CONFIG_FLOW_OPTIONS
             )
+
+            if apply_defaults:
+                ha = get_ha(self.hass, self._config_entry.entry_id)
+                if ha is not None and ha.auto_reset_manager is not None:
+                    ha.auto_reset_manager.reset_cameras_to_defaults()
+
+                    # Unchanged options don't reload the entry; refresh now
+                    ha.entity_manager.update()
+                    await ha.dispatch_all()
 
             return self.async_create_entry(title=self._config_flow.title, data=options)
 

@@ -2,7 +2,8 @@
 
 ## 1.0.28
 
-- Add auto reset: resets a camera when its Problem sensor stays on. Per camera a switch (off by default) and Delay / Attempts / Interval numbers; on the server a master switch and a notifications switch. Changes apply live without a reload and are stored across restarts
+- Add auto reset: resets a camera when its Problem sensor stays on. Per camera a switch and Delay / Attempts / Interval numbers; on the server a master switch and a notifications switch. Changes apply live without a reload and are stored across restarts
+- Auto reset defaults in the options (on, 30 s delay, 3 attempts, 90 s interval), used by every camera not changed on its own; per-camera values override them one by one. "Set all cameras back to these defaults" clears the per-camera values
 - Pauses while the server is not connected and for 5 minutes after Blue Iris starts
 - One persistent notification per camera (camera, problem, since, outcome), and a `blueiris_auto_reset` event (`reset`, `recovered`, `gave_up`) for alerts
 - Problem sensor shows `auto_reset_state`, `auto_reset_attempts` and `auto_reset_last`
