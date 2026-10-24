@@ -6,6 +6,24 @@ trigger_camera:
       integration: blueiris
       domain: camera
 
+current_camera_snapshot:
+  name: Current Camera Snapshot
+  description: >-
+    Saves the camera's current still image to the local media folder
+    (media/blueiris) and returns its path and a /media/local URL.
+  target:
+    entity:
+      integration: blueiris
+      domain: camera
+  fields:
+    filename:
+      name: File name
+      description: Optional file name; defaults to <camera id>_current.jpg
+      required: false
+      example: "driveway_frozen.jpg"
+      selector:
+        text:
+
 move_to_preset:
   name: Move to Preset
   description: Moves the selected camera to the specified preset

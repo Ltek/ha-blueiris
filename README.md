@@ -200,6 +200,20 @@ Trigger Camera: Provides the ability to manually trigger a camera or camera grou
 
 Move to Preset: Provides the ability to move a camera to a specified preset
 
+Current Camera Snapshot: Saves the camera's current still image to `media/blueiris/` (file name optional, default `<camera id>_current.jpg`) and returns `saved_path` and `local_snapshot_url` (`/media/local/blueiris/...`) as the service response, e.g. for a notification image:
+
+```yaml
+- action: blueiris.current_camera_snapshot
+  target:
+    entity_id: camera.bi5_driveway
+  response_variable: snap
+- action: notify.mobile_app_phone
+  data:
+    message: Driveway camera
+    data:
+      image: "{{ snap['camera.bi5_driveway'].local_snapshot_url }}"
+```
+
 ## Lovelace UI Configuration
 
 [Example of UI layout](https://github.com/elad-bar/ha-blueiris/blob/master/docs/configs/casting/configuration.yaml)
