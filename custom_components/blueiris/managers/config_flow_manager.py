@@ -290,7 +290,9 @@ class ConfigFlowManager:
 
         general_fields[
             vol.Optional(CONF_LOG_LEVEL, default=config_data.log_level)
-        ] = vol.In(LOG_LEVELS)
+        ] = SelectSelector(
+            SelectSelectorConfig(options=LOG_LEVELS, mode=SelectSelectorMode.DROPDOWN)
+        )
         general_fields[vol.Optional(CONF_GENERATE_CONFIG_FILES, default=False)] = bool
 
         fields[vol.Required(OPTION_SECTION_GENERAL)] = section(

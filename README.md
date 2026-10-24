@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current version: **1.0.29** · [Changelog](CHANGELOG.md)
+Current version: **1.0.30** · [Changelog](CHANGELOG.md)
 
 ## Features
 
@@ -19,6 +19,7 @@ Current version: **1.0.29** · [Changelog](CHANGELOG.md)
 - **Sensors** for the server: Connection Health and Uptime
 - **Switches** for Blue Iris profiles and schedules (admin user required)
 - **Services**: Trigger Camera, Move to Preset, Reset Camera, Current Camera Snapshot
+- **Log Level** select on the server device to see and change the log level live
 - **Diagnostics** download for bug reports
 - SSL with self-signed certificates
 
@@ -94,7 +95,7 @@ Two collapsed groups below hold the other settings:
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Auto reset defaults | Persistent notifications, On by default, Delay, Attempts, Interval, Set all cameras back to these defaults (admin user only) |
 | Connection          | Host, Port, SSL, Username, Password, Clear credentials (workaround to clear the username and password; not stored as option) |
-| Streams and logging | Stream type (H264 / H264 TS / MJPEG), Stream support (requires restart), Log level, Generate configuration files            |
+| Streams and logging | Stream type (H264 / H264 TS / MJPEG), Stream support (requires restart), Log level - Default on Startup, Generate configuration files |
 
 **Page 2 - choose items.** Only appears when at least one section is set to `Choose…`. Each of those sections is a group with a checkbox per item, pre-filled with the current selection.
 
@@ -103,12 +104,11 @@ Title will be extracted from BlueIris server's configuration, it will be set upo
 
 Note that in case there are 2 integrations with the same integration's title, components will be overwritten by both integrations.
 
-**Log Level's drop-down**
-New feature to set the log level for the component without need to set log_level in `customization:` and restart or call manually `logger.set_level` and loose it after restart.
+**Log level**
 
-Upon startup or integration's option update, based on the value chosen, the component will make a service call to `logger.set_level` for that component with the desired value,
-
-In case `Default` option is chosen the service call will not happen. Therefore after changing from any other option to `Default` a restart is required.
+- *Log level - Default on Startup* (options, Streams and logging) is applied every time Home Assistant starts or the integration reloads. `Default` keeps Home Assistant's own logging setup (normally Warning, or whatever `logger:` in `configuration.yaml` says)
+- The server's **Log Level** entity (`select.<server>_log_level`, Configuration section of the server device) shows the level actually in effect, including changes made with HA's *Enable debug logging* or `logger.set_level`, and changes it immediately without a reload. It is not saved: the next restart goes back to the Default on Startup level, so a forgotten Debug setting doesn't keep filling the log
+- Neither needs the `logger:` integration
 
 ###### Auto-generating configurations files:
 

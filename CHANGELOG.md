@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.30
+
+- Add Log Level select on the server device: shows the log level in effect and changes it immediately, without a reload; not saved, so a restart goes back to the startup level
+- The options' log level is now labelled *Log level - Default on Startup* and is applied directly, so it no longer needs `logger:` in `configuration.yaml`
+
 ## 1.0.29
 
 - Add *Persistent notifications* on / off to the options (Auto reset defaults); same setting as the server's Auto Reset Notifications switch

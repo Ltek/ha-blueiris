@@ -14,6 +14,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.components.button import DOMAIN as DOMAIN_BUTTON
 from homeassistant.components.camera import DOMAIN as DOMAIN_CAMERA
 from homeassistant.components.number import DOMAIN as DOMAIN_NUMBER
+from homeassistant.components.select import DOMAIN as DOMAIN_SELECT
 from homeassistant.components.sensor import DOMAIN as DOMAIN_SENSOR
 from homeassistant.components.switch import DOMAIN as DOMAIN_SWITCH
 from homeassistant.const import (
@@ -365,6 +366,7 @@ BI_UPDATE_SIGNAL_SWITCH = f"{DOMAIN}_{DOMAIN_SWITCH}_UPDATE_SIGNAL"
 BI_UPDATE_SIGNAL_SENSOR = f"{DOMAIN}_{DOMAIN_SENSOR}_UPDATE_SIGNAL"
 BI_UPDATE_SIGNAL_BUTTON = f"{DOMAIN}_{DOMAIN_BUTTON}_UPDATE_SIGNAL"
 BI_UPDATE_SIGNAL_NUMBER = f"{DOMAIN}_{DOMAIN_NUMBER}_UPDATE_SIGNAL"
+BI_UPDATE_SIGNAL_SELECT = f"{DOMAIN}_{DOMAIN_SELECT}_UPDATE_SIGNAL"
 
 CONFIG_FIELDS = {
     vol.Required(CONF_HOST): str,
@@ -381,6 +383,7 @@ SUPPORTED_DOMAINS = [
     DOMAIN_SENSOR,
     DOMAIN_BUTTON,
     DOMAIN_NUMBER,
+    DOMAIN_SELECT,
 ]
 SIGNALS = {
     DOMAIN_BINARY_SENSOR: BI_UPDATE_SIGNAL_BINARY_SENSOR,
@@ -389,6 +392,7 @@ SIGNALS = {
     DOMAIN_SENSOR: BI_UPDATE_SIGNAL_SENSOR,
     DOMAIN_BUTTON: BI_UPDATE_SIGNAL_BUTTON,
     DOMAIN_NUMBER: BI_UPDATE_SIGNAL_NUMBER,
+    DOMAIN_SELECT: BI_UPDATE_SIGNAL_SELECT,
 }
 
 ENTITY_ID = "id"
@@ -439,6 +443,16 @@ LOG_LEVEL_DEBUG = "Debug"
 LOG_LEVEL_INFO = "Info"
 LOG_LEVEL_WARNING = "Warning"
 LOG_LEVEL_ERROR = "Error"
+
+LOG_LEVEL_SELECT_OPTIONS = [
+    LOG_LEVEL_DEBUG,
+    LOG_LEVEL_INFO,
+    LOG_LEVEL_WARNING,
+    LOG_LEVEL_ERROR,
+]
+LOG_LEVEL_NAME = "Log Level"
+LOG_LEVEL_ICON = "mdi:text-box-search-outline"
+INTEGRATION_LOGGER = f"custom_components.{DOMAIN}"
 
 LOG_LEVELS = [
     LOG_LEVEL_DEFAULT,
