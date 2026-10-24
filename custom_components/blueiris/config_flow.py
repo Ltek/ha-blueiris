@@ -24,6 +24,7 @@ class DomainFlowHandler(config_entries.ConfigFlow):
         super().__init__()
 
         self._config_flow = ConfigFlowManager()
+        self._setup_data = None
 
     @staticmethod
     @callback
@@ -43,9 +44,11 @@ class DomainFlowHandler(config_entries.ConfigFlow):
 
         if user_input is not None:
             try:
-                data = await self._config_flow.update_data(user_input, CONFIG_FLOW_DATA)
+                self._setup_data = await self._config_flow.update_data(
+                    user_input, CONFIG_FLOW_DATA
+                )
 
-                return self.async_create_entry(title=self._config_flow.title, data=data)
+                return await self.async_step_features()
             except LoginError as lex:
                 await self._config_flow.clear_credentials(new_user_input)
 
@@ -67,6 +70,20 @@ class DomainFlowHandler(config_entries.ConfigFlow):
             data_schema=schema,
             errors=errors,
             description_placeholders=new_user_input,
+        )
+
+    async def async_step_features(self, user_input=None):
+        """Second setup page: pick features; cameras are tuned in Configure."""
+        if user_input is not None:
+            return self.async_create_entry(
+                title=self._config_flow.title,
+                data=self._setup_data,
+                options=self._config_flow.setup_features_options(user_input),
+            )
+
+        return self.async_show_form(
+            step_id="features",
+            data_schema=self._config_flow.get_setup_features_schema(),
         )
 
     async def async_step_import(self, info):
@@ -106,11 +123,12 @@ class DomainOptionsFlowHandler(config_entries.OptionsFlow):
             self._categories = self._config_flow.get_option_categories()
 
     def _custom_categories(self) -> list[str]:
+        flat = self._config_flow.flatten_sections(self._main_input)
+
         return [
             category["name"]
             for category in self._categories
-            if category["enabled"]
-            and self._main_input.get(category["name"]) == OPTION_MODE_CUSTOM
+            if category["enabled"] and flat.get(category["name"]) == OPTION_MODE_CUSTOM
         ]
 
     async def async_step_blue_iris_additional_settings(

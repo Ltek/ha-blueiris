@@ -1,12 +1,18 @@
 from datetime import datetime, timezone
 import logging
+import re
 import sys
 from typing import Optional
 
 from homeassistant.components.camera import DEFAULT_CONTENT_TYPE
 from homeassistant.components.button import ButtonDeviceClass
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.const import EntityCategory, UnitOfTime
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.const import (
+    PERCENTAGE,
+    EntityCategory,
+    UnitOfInformation,
+    UnitOfTime,
+)
 from homeassistant.components.stream import DOMAIN as DOMAIN_STREAM
 from homeassistant.const import CONF_AUTHENTICATION
 from homeassistant.core import HomeAssistant
@@ -70,6 +76,40 @@ def get_camera_problem(camera: CameraData) -> Optional[str]:
         return PROBLEM_STALLED
 
     return None
+
+
+_SIZE_UNITS = {"": 1, "K": 1024, "M": 1024**2, "G": 1024**3, "T": 1024**4, "P": 1024**5}
+
+
+def parse_number(value) -> Optional[float]:
+    """A number from Blue Iris, which may come as '45%', '7.5' or 7.5."""
+    if isinstance(value, bool) or value is None:
+        return None
+
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    match = re.search(r"-?\d+(?:\.\d+)?", str(value))
+
+    return None if match is None else float(match.group(0))
+
+
+def parse_size_gb(value) -> Optional[float]:
+    """A size in GB (GiB) from '1.23 TB', '512G', '850 MB', or bytes."""
+    if isinstance(value, bool) or value is None:
+        return None
+
+    if isinstance(value, (int, float)):
+        return round(value / 1024**3, 2)
+
+    match = re.search(r"(-?\d+(?:\.\d+)?)\s*([KMGTP]?)I?B?", str(value).upper())
+    if match is None:
+        return None
+
+    size = float(match.group(1)) * _SIZE_UNITS[match.group(2)]
+
+    # A bare number without a unit is taken as bytes
+    return round(size / 1024**3, 2)
 
 
 def _get_camera_binary_sensor_key(topic, event_type):
@@ -808,6 +848,131 @@ class EntityManager:
                 self.set_entity(DOMAIN_SENSOR, entity.name, entity)
         except Exception as ex:
             self.log_exception(ex, "Failed to generate server sensors")
+
+        try:
+            for entity in self.get_server_status_sensors(system_device_name):
+                self.set_entity(DOMAIN_SENSOR, entity.name, entity)
+        except Exception as ex:
+            self.log_exception(ex, "Failed to generate server status sensors")
+
+    def _server_sensor(
+        self, system_device_name, label, state, icon, details, attributes=None
+    ) -> EntityData:
+        entity_name = f"{self.integration_title} {label}"
+
+        entity = EntityData()
+
+        entity.unique_id = f"{DOMAIN}-{DOMAIN_SENSOR}-{entity_name}"
+        entity.name = entity_name
+        entity.state = state
+        entity.attributes = {ATTR_FRIENDLY_NAME: entity_name, **(attributes or {})}
+        entity.icon = icon
+        entity.device_name = system_device_name
+        entity.type = label
+        entity.details = details
+
+        return entity
+
+    def get_server_status_sensors(self, system_device_name) -> list[EntityData]:
+        """CPU, memory, disks, warnings, connections from Blue Iris' status."""
+        enabled = self.config_data.server_sensors
+        status = self.api.status
+        measurement = {ENTITY_SENSOR_STATE_CLASS: SensorStateClass.MEASUREMENT}
+        result = []
+
+        if enabled[SERVER_SENSOR_CPU]:
+            result.append(
+                self._server_sensor(
+                    system_device_name,
+                    "CPU",
+                    parse_number(status.get("cpu")),
+                    "mdi:cpu-64-bit",
+                    {**measurement, ENTITY_SENSOR_UNIT: PERCENTAGE},
+                )
+            )
+
+        if enabled[SERVER_SENSOR_MEMORY]:
+            result.append(
+                self._server_sensor(
+                    system_device_name,
+                    "Memory",
+                    parse_number(status.get("memload")),
+                    "mdi:memory",
+                    {**measurement, ENTITY_SENSOR_UNIT: PERCENTAGE},
+                    {
+                        "blue_iris_ram": status.get("mem") or status.get("ram"),
+                        "system_ram": status.get("memphys"),
+                    },
+                )
+            )
+
+        if enabled[SERVER_SENSOR_WARNINGS]:
+            result.append(
+                self._server_sensor(
+                    system_device_name,
+                    "Warnings",
+                    parse_number(status.get("warnings")),
+                    "mdi:alert-outline",
+                    measurement,
+                )
+            )
+
+        if enabled[SERVER_SENSOR_CONNECTIONS]:
+            result.append(
+                self._server_sensor(
+                    system_device_name,
+                    "Connections",
+                    parse_number(status.get("cxns")),
+                    "mdi:lan-connect",
+                    {**measurement, ENTITY_SENSOR_CATEGORY: EntityCategory.DIAGNOSTIC},
+                )
+            )
+
+        discs = status.get("discs")
+        if enabled[SERVER_SENSOR_DISKS] and isinstance(discs, list):
+            for disc in discs:
+                if not isinstance(disc, dict):
+                    continue
+
+                raw_name = next(
+                    (disc[k] for k in ("disc", "disk", "name", "drive") if disc.get(k)),
+                    None,
+                )
+                if raw_name is None:
+                    continue
+
+                name = str(raw_name).strip().rstrip(":\\")
+                free = parse_size_gb(disc.get("free"))
+                total = parse_size_gb(disc.get("total"))
+
+                attributes = {
+                    "drive": name,
+                    # As sent by Blue Iris, to check the conversion
+                    "allocated": disc.get("allocated"),
+                    "used": disc.get("used"),
+                    "free_raw": disc.get("free"),
+                    "total": disc.get("total"),
+                    "free_percent": None
+                    if free is None or not total
+                    else round(free / total * 100, 1),
+                }
+
+                result.append(
+                    self._server_sensor(
+                        system_device_name,
+                        f"Disk {name} Free",
+                        free,
+                        "mdi:harddisk",
+                        {
+                            **measurement,
+                            ENTITY_SENSOR_DEVICE_CLASS: SensorDeviceClass.DATA_SIZE,
+                            ENTITY_SENSOR_UNIT: UnitOfInformation.GIBIBYTES,
+                        },
+                        attributes,
+                    )
+                )
+
+        return result
 
     def get_main_binary_sensor(self) -> EntityData:
         entity = None

@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current version: **1.0.31** · [Changelog](CHANGELOG.md)
+Current build: **v2026.10.24.32** · full history in [CHANGELOG.md](CHANGELOG.md)
 
 ## Features
 
@@ -16,7 +16,7 @@ Current version: **1.0.31** · [Changelog](CHANGELOG.md)
 - **Reset button** per camera
 - **Auto reset** per camera: resets cameras whose Problem sensor stays on, with per-camera delay / attempts / interval you can change live
 - **Binary sensors** per camera from MQTT: Motion, Audio, Connectivity, DIO, External, plus a server-level Alerts sensor
-- **Sensors** for the server: Connection Health and Uptime
+- **Sensors** for the server: Connection Health, Uptime, CPU, Memory, free space per drive, Warnings, Connections
 - **Switches** for Blue Iris profiles and schedules (admin user required)
 - **Services**: Trigger Camera, Move to Preset, Reset Camera, Current Camera Snapshot
 - **Log Level** select on the server device to see and change the log level live
@@ -67,7 +67,9 @@ Replacing an existing elad-bar install: remove that repository inside HACS first
 
 The options are two pages.
 
-**Page 1 - which components to create.** Each section has a drop-down with three choices; the labels show how many items the section has and how many are currently selected, e.g. `Choose… (3 of 15 selected)`:
+**Setup.** After the server details, setup shows a *Blue Iris features* page with the Server sensors and the Auto reset defaults. Everything per camera is set in Configure afterwards.
+
+**Page 1 - which components to create.** The choices are grouped into sections: *Cameras* (camera and Problem sensors, open), *MQTT sensors* and *Profiles and schedules* (collapsed, shown only when they apply). Each choice has a drop-down with three choices; the labels show how many items the section has and how many are currently selected, e.g. `Choose… (3 of 15 selected)`:
 
 | Choice    | Effect                                                                                  |
 | --------- | --------------------------------------------------------------------------------------- |
@@ -89,10 +91,11 @@ The options are two pages.
 
 A section that is not shown keeps its saved setting.
 
-Two collapsed groups below hold the other settings:
+Collapsed groups below hold the other settings:
 
 | Group               | Fields                                                                                                                       |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Server sensors      | CPU, Memory, Free space per drive, Warnings, Connections (each on / off, all on by default)                                  |
 | Auto reset defaults | Persistent notifications, On by default, Delay, Attempts, Interval, Set all cameras back to these defaults (admin user only) |
 | Connection          | Host, Port, SSL, Username, Password, Clear credentials (workaround to clear the username and password; not stored as option) |
 | Streams and logging | Stream type (H264 / H264 TS / MJPEG), Stream support (requires restart), Log level - Default on Startup, Generate configuration files |
@@ -297,6 +300,9 @@ State: Idle
 | No Signal #                                     |
 | Error                                           |
 | Group Cameras (list of camera names if a group) |
+| IP                                              |
+
+The camera's device page has a **Visit** link to `http://<camera IP>` (the camera's own web interface), when Blue Iris reports an IP.
 
 ###### Sensor - Connection Health
 
@@ -319,6 +325,18 @@ Health of the connection to the Blue Iris server, refreshed on every poll. Usefu
 | bi_version           |
 | profile              |
 | schedule             |
+
+###### Sensors - Server status
+
+From Blue Iris' status on every poll, each can be turned off in Configure -> Server sensors:
+
+| Sensor                      | Value                                                                  |
+| --------------------------- | ---------------------------------------------------------------------- |
+| `sensor.<server>_cpu`       | CPU use (%)                                                            |
+| `sensor.<server>_memory`    | System memory in use (%); attributes Blue Iris RAM and installed RAM   |
+| `sensor.<server>_disk_<drive>_free` | Free space per drive (GiB); attributes allocated, used, total, free %, and the raw values Blue Iris sent |
+| `sensor.<server>_warnings`  | Warnings on Blue Iris' Messages page                                   |
+| `sensor.<server>_connections` | Active web server connections (diagnostic)                           |
 
 ###### Sensor - Uptime
 
