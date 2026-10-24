@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.26
+
+- Add Problem binary sensor per camera: on for no signal, offline or stalled (< 1 FPS), with reason and since; unavailable while the server is not connected and for 5 minutes after Blue Iris starts. Disabled and paused cameras are ignored. New "Problem sensors" section in the options
+- Add Reset button per camera (admin user), same as `blueiris.reset_camera`
+
 ## 1.0.25
 
 - Options reworked into two pages: each component section (cameras, Motion / Connectivity / Audio / DIO / External sensors, profiles, schedules) has All / None / Choose…, with the item count and current selection in the label. All includes cameras added to Blue Iris later; None turns the section off. Sections set to Choose… get a checkbox list on the second page

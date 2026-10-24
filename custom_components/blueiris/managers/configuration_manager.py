@@ -43,6 +43,9 @@ class ConfigManager:
             CONF_ALLOWED_EXTERNAL_SENSOR, options
         )
         result.allowed_profile = self._get_allowed_option(CONF_ALLOWED_PROFILE, options)
+        result.allowed_problem_sensor = self._get_allowed_option(
+            CONF_ALLOWED_PROBLEM_SENSOR, options
+        )
 
         result.allowed_schedule = self._get_allowed_option(
             CONF_ALLOWED_SCHEDULE, options

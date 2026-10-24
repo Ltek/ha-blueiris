@@ -6,12 +6,14 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current version: **1.0.25** · [Changelog](CHANGELOG.md)
+Current version: **1.0.26** · [Changelog](CHANGELOG.md)
 
 ## Features
 
 - **Camera** per Blue Iris camera, group and system camera (All, Cycle), with live attributes (FPS, online, no signal count, error, ...)
 - **Streams**: H264 (HLS), H264 TS or MJPEG, optionally through the Home Assistant stream component
+- **Problem binary sensor** per camera: on when Blue Iris reports no signal, offline or a stalled stream
+- **Reset button** per camera
 - **Binary sensors** per camera from MQTT: Motion, Audio, Connectivity, DIO, External, plus a server-level Alerts sensor
 - **Sensors** for the server: Connection Health and Uptime
 - **Switches** for Blue Iris profiles and schedules (admin user required)
@@ -21,6 +23,8 @@ Current version: **1.0.25** · [Changelog](CHANGELOG.md)
 
 ## New in this fork
 
+- Problem binary sensor per camera (no signal / offline / stalled), computed from Blue Iris' own camera status on every poll and unavailable while the server is down or just started, so it never acts on stale data
+- Reset button per camera
 - `blueiris.reset_camera` service: resets (reconnects) a frozen or "No signal" camera, the same as Blue Iris' Reset command. Raises an error with Blue Iris' reason when it fails
 - `blueiris.current_camera_snapshot` service: saves the current still to `media/blueiris/` and returns a `/media/local` URL for notifications
 - Connection Health sensor: `connected`, `server_unreachable`, `auth_failed` or `error`, so automations can ignore stale camera data while the server is down
@@ -71,6 +75,7 @@ The options are two pages.
 | Section              | Items                                    | Shown when                     |
 | -------------------- | ---------------------------------------- | ------------------------------ |
 | Camera components    | All cameras, groups and system cameras   | Always                         |
+| Problem sensors      | Cameras (not groups or system cameras)   | Always                         |
 | Motion sensors       | Non-system cameras                       | MQTT integration is set up     |
 | Connectivity sensors | Non-system cameras                       | MQTT integration is set up     |
 | Audio sensors        | Non-system cameras that support audio    | MQTT integration is set up     |
@@ -172,6 +177,35 @@ Represents whether the camera is triggered for digital I/O event or not (based o
 ###### Binary Sensor - External - Non-system-camera
 
 Represents whether the camera is triggered for external / ONVIF event or not (based on MQTT message)
+
+###### Binary Sensor - Problem - Per camera (not groups or system cameras)
+
+On when the camera needs attention, computed from Blue Iris' camera list on every poll (not MQTT):
+
+| Reason      | Condition                                       |
+| ----------- | ----------------------------------------------- |
+| `no_signal` | Blue Iris reports No Signal                     |
+| `offline`   | Camera is not online                            |
+| `stalled`   | Online but below 1 FPS                          |
+
+Disabled and paused cameras never count as a problem. The sensor is **unavailable** while the server is not `connected` (see Connection Health) and for the first 5 minutes after Blue Iris starts, so it never reports stale or settling data. It also adds the camera to the server's Alerts sensor while on.
+
+| Attributes      |
+| --------------- |
+| camera_id       |
+| reason          |
+| since           |
+| fps             |
+| is_online       |
+| no_signal       |
+| no_signal_count |
+| error           |
+
+A camera that keeps sending the same frame at a normal frame rate cannot be detected.
+
+###### Button - Reset - Per camera (admin user)
+
+Resets (reconnects) the camera, the same as the Reset Camera service. Created for cameras that have a camera entity.
 
 ###### Camera
 
