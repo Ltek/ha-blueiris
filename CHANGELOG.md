@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.10.24.36
+
+- Auto reset can reboot the camera itself once after the last reset, before giving up: per-camera *Auto Reset Reboot* switch, default in Configure -> Auto reset defaults (off). New `reboot` event type and `rebooted` in the events; notifications say "after N reset(s) and a reboot"
+- `#ha:no-detection` in a camera's Notes in Blue Iris turns Problem Detection off for it, overriding the switch
+
 ## v2026.10.24.35
 
 - Add server controls (admin user): Shield select (Armed / Disarmed / Arming), Profile Hold switch (checks Blue Iris really held or released the profile), Restart Web Server and Restart AI buttons. Each can be turned off in Configure -> Server

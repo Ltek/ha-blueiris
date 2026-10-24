@@ -14,9 +14,9 @@ def clean_auto_reset_values(values: dict, base: dict) -> dict:
     """Return base updated with the valid entries of values, clamped."""
     result = dict(base)
 
-    enabled = values.get(AUTO_RESET_KEY_ENABLED)
-    if isinstance(enabled, bool):
-        result[AUTO_RESET_KEY_ENABLED] = enabled
+    for key in AUTO_RESET_BOOL_KEYS:
+        if isinstance(values.get(key), bool):
+            result[key] = values[key]
 
     for key, (minimum, maximum, _step) in AUTO_RESET_LIMITS.items():
         value = values.get(key)

@@ -145,7 +145,12 @@ class AutoResetManager:
     def _rt(self, camera_id: str) -> dict[str, Any]:
         return self._runtime.setdefault(
             camera_id,
-            {"state": AUTO_RESET_STATE_IDLE, "attempts": 0, "last_reset": None},
+            {
+                "state": AUTO_RESET_STATE_IDLE,
+                "attempts": 0,
+                "last_reset": None,
+                "rebooted": False,
+            },
         )
 
     def status(self, camera_id: str) -> dict[str, Any]:
@@ -153,7 +158,9 @@ class AutoResetManager:
         settings = self.camera_settings(camera_id)
         rt = self._runtime.get(camera_id)
 
-        if not settings[AUTO_RESET_KEY_ENABLED] or not self.problem_detection(camera_id):
+        detection = self._ha.entity_manager.problem_detection_enabled(camera_id)
+
+        if not settings[AUTO_RESET_KEY_ENABLED] or not detection:
             state = AUTO_RESET_STATE_OFF
         elif not self.enabled or not self._ha.entity_manager.problem_data_fresh:
             state = AUTO_RESET_STATE_PAUSED
@@ -163,6 +170,7 @@ class AutoResetManager:
         last_reset = None if rt is None else rt["last_reset"]
 
         return {
+            ATTR_AUTO_RESET_REBOOTED: False if rt is None else rt["rebooted"],
             ATTR_AUTO_RESET_STATE: state,
             ATTR_AUTO_RESET_ATTEMPTS: 0 if rt is None else rt["attempts"],
             ATTR_AUTO_RESET_LAST: None if last_reset is None else last_reset.isoformat(),
@@ -190,9 +198,9 @@ class AutoResetManager:
 
             settings = self.camera_settings(camera.id)
 
-            if not settings[AUTO_RESET_KEY_ENABLED] or not self.problem_detection(
-                camera.id
-            ):
+            if not settings[
+                AUTO_RESET_KEY_ENABLED
+            ] or not entity_manager.problem_detection_enabled(camera.id):
                 self._runtime.pop(camera.id, None)
                 continue
 
@@ -228,8 +236,14 @@ class AutoResetManager:
         due = last_reset is None or now - last_reset >= interval
 
         if rt["attempts"] >= max_attempts:
-            if due and rt["state"] != AUTO_RESET_STATE_GAVE_UP:
-                self._finish(camera, rt, AUTO_RESET_EVENT_GAVE_UP, now)
+            if not due or rt["state"] == AUTO_RESET_STATE_GAVE_UP:
+                return
+
+            if settings[AUTO_RESET_KEY_REBOOT] and not rt["rebooted"]:
+                await self._async_reboot(camera, rt, max_attempts, now)
+                return
+
+            self._finish(camera, rt, AUTO_RESET_EVENT_GAVE_UP, now)
             return
 
         if not due:
@@ -258,18 +272,42 @@ class AutoResetManager:
             title_suffix="problem",
         )
 
+    async def _async_reboot(self, camera, rt: dict, max_attempts: int, now: datetime):
+        """Last step after the resets: reboot the camera itself, once."""
+        rt["rebooted"] = True
+        rt["last_reset"] = now
+        rt["state"] = AUTO_RESET_STATE_REBOOTING
+
+        error = None
+        try:
+            await self._ha.api.reboot_camera(camera.id)
+        except BlueIrisCommandError as ex:
+            error = str(ex)
+            _LOGGER.warning(f"Auto reset reboot of {camera.id} failed: {error}")
+
+        _LOGGER.info(f"Auto reset: rebooting {camera.id} after {rt['attempts']} resets")
+
+        self._fire(camera, AUTO_RESET_EVENT_REBOOT, rt, max_attempts, error)
+        self._notify(
+            camera,
+            f"Rebooting the camera after {rt['attempts']} reset(s)"
+            + ("" if error is None else f" (failed: {error})"),
+            title_suffix="problem",
+        )
+
     def _finish(self, camera, rt: dict, event_type: str, now: datetime):
         attempts = rt["attempts"]
         settings = self.camera_settings(camera.id)
         when = dt_util.as_local(now).strftime("%Y-%m-%d %H:%M:%S")
+        steps = f"{attempts} reset(s)" + (" and a reboot" if rt["rebooted"] else "")
 
         if event_type == AUTO_RESET_EVENT_RECOVERED:
             rt["state"] = AUTO_RESET_STATE_IDLE
-            text = f"**Recovered:** {when} after {attempts} reset(s)"
+            text = f"**Recovered:** {when} after {steps}"
             suffix = "recovered"
         else:
             rt["state"] = AUTO_RESET_STATE_GAVE_UP
-            text = f"**Status:** still down after {attempts} reset(s) ({when})"
+            text = f"**Status:** still down after {steps} ({when})"
             suffix = "still down"
 
         self._fire(camera, event_type, rt, int(settings[AUTO_RESET_KEY_ATTEMPTS]))
@@ -316,6 +354,7 @@ class AutoResetManager:
                 "since": None if since is None else since.isoformat(),
                 "attempt": rt["attempts"],
                 "max_attempts": max_attempts,
+                "rebooted": rt["rebooted"],
                 "error": error,
             },
         )

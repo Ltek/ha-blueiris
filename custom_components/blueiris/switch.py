@@ -150,6 +150,11 @@ class BlueIrisAutoResetSwitch(SwitchEntity, BlueIrisEntity):
         auto_reset = self.ha.auto_reset_manager
 
         if self.entity.type == PROBLEM_DETECTION_SWITCH:
+            if value and self.entity_manager.detection_off_by_notes(self.entity.id):
+                raise HomeAssistantError(
+                    f"Problem Detection is turned off by {NOTES_TAG_NO_DETECTION} in "
+                    "this camera's Notes in Blue Iris; remove the tag there first"
+                )
             auto_reset.set_problem_detection(self.entity.id, value)
             # Re-judge cameras from the last poll so the sensor follows now
             self.entity_manager.update_camera_problems()
