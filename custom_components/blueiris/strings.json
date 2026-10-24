@@ -17,14 +17,18 @@
         "description": "Pick the features to set up. Cameras, sensors per camera and the rest are set in Configure afterwards.",
         "sections": {
           "server": {
-            "name": "Server sensors",
-            "description": "Blue Iris server status shown on the server device.",
+            "name": "Server",
+            "description": "Blue Iris server status and controls on the server device. Controls need an admin user.",
             "data": {
               "server_sensor_cpu": "CPU",
               "server_sensor_memory": "Memory",
               "server_sensor_disks": "Free space per drive",
               "server_sensor_warnings": "Warnings",
-              "server_sensor_connections": "Connections"
+              "server_sensor_connections": "Connections",
+              "server_control_shield": "Shield (Armed / Disarmed / Arming)",
+              "server_control_profile_hold": "Profile Hold switch",
+              "server_control_restart_web_server": "Restart Web Server button",
+              "server_control_restart_ai": "Restart AI button"
             }
           },
           "auto_reset": {
@@ -116,14 +120,26 @@
             }
           },
           "server": {
-            "name": "Server sensors",
-            "description": "Blue Iris server status shown on the server device.",
+            "name": "Server",
+            "description": "Blue Iris server status and controls on the server device. Controls need an admin user.",
             "data": {
               "server_sensor_cpu": "CPU",
               "server_sensor_memory": "Memory",
               "server_sensor_disks": "Free space per drive",
               "server_sensor_warnings": "Warnings",
-              "server_sensor_connections": "Connections"
+              "server_sensor_connections": "Connections",
+              "server_control_shield": "Shield (Armed / Disarmed / Arming)",
+              "server_control_profile_hold": "Profile Hold switch",
+              "server_control_restart_web_server": "Restart Web Server button",
+              "server_control_restart_ai": "Restart AI button"
+            }
+          },
+          "blue_iris_log": {
+            "name": "Blue Iris log",
+            "description": "New Blue Iris warnings and errors become blueiris_log events and the server's Last Message sensor. Admin user.",
+            "data": {
+              "log_events": "Report Blue Iris log messages",
+              "log_min_level": "Report"
             }
           },
           "connection": {
@@ -300,6 +316,14 @@
       "invalid_admin_credentials": "Invalid administrator credentials",
       "invalid_server_details": "Invalid server details",
       "already_configured": "BlueIris integration already configured with the name"
+    }
+  },
+  "selector": {
+    "log_min_level": {
+      "options": {
+        "warning": "Warnings and errors",
+        "error": "Errors only"
+      }
     }
   }
 }

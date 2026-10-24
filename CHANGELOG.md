@@ -1,5 +1,11 @@
 # Changelog
 
+## v2026.10.24.35
+
+- Add server controls (admin user): Shield select (Armed / Disarmed / Arming), Profile Hold switch (checks Blue Iris really held or released the profile), Restart Web Server and Restart AI buttons. Each can be turned off in Configure -> Server
+- Add Blue Iris log reporting: new warnings and errors (or errors only) fire `blueiris_log` events and update the server's Last Message sensor
+- Options: the Server sensors section is now *Server*, with the controls; new *Blue Iris log* section
+
 ## v2026.10.24.34
 
 - Add camera sensors, chosen per camera in Configure -> Camera sensors: Bitrate and Substream Bitrate (kbit/s, with FPS and resolution) and Last Alert on by default; Recording, Triggered and Alerting off by default

@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current build: **v2026.10.24.34** · full history in [CHANGELOG.md](CHANGELOG.md)
+Current build: **v2026.10.24.35** · full history in [CHANGELOG.md](CHANGELOG.md)
 
 ## Features
 
@@ -20,6 +20,8 @@ Current build: **v2026.10.24.34** · full history in [CHANGELOG.md](CHANGELOG.md
 - **Binary sensors** per camera from MQTT: Motion, Audio, Connectivity, DIO, External, plus a server-level Alerts sensor
 - **Sensors** for the server: Connection Health, Uptime, CPU, Memory, free space per drive, Warnings, Connections
 - **Switches** for Blue Iris profiles and schedules (admin user required)
+- **Server controls**: Shield (Armed / Disarmed / Arming), Profile Hold, Restart Web Server, Restart AI
+- **Blue Iris log**: new warnings and errors as `blueiris_log` events and a Last Message sensor
 - **Services**: Trigger Camera, Move to Preset, Reset Camera, Snapshot to Database, Current Camera Snapshot
 - **Log Level** select on the server device to see and change the log level live
 - **Diagnostics** download for bug reports
@@ -99,7 +101,8 @@ Collapsed groups below hold the other settings:
 
 | Group               | Fields                                                                                                                       |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Server sensors      | CPU, Memory, Free space per drive, Warnings, Connections (each on / off, all on by default)                                  |
+| Server              | Sensors: CPU, Memory, Free space per drive, Warnings, Connections. Controls: Shield, Profile Hold, Restart Web Server, Restart AI. Each on / off, all on by default |
+| Blue Iris log       | Report Blue Iris log messages (on), Report: Warnings and errors / Errors only                                              |
 | Auto reset defaults | Persistent notifications, On by default, Delay, Attempts, Interval, Set all cameras back to these defaults (admin user only) |
 | Connection          | Host, Port, SSL, Username, Password, Clear credentials (workaround to clear the username and password; not stored as option) |
 | Streams and logging | Stream type (H264 / H264 TS / MJPEG), Stream support (requires restart), Log level - Default on Startup, Generate configuration files |
@@ -371,6 +374,34 @@ From Blue Iris' status on every poll, each can be turned off in Configure -> Ser
 | `sensor.<server>_disk_<drive>_free` | Free space per drive (GiB); attributes allocated, used, total, free %, and the raw values Blue Iris sent |
 | `sensor.<server>_warnings`  | Warnings on Blue Iris' Messages page                                   |
 | `sensor.<server>_connections` | Active web server connections (diagnostic)                           |
+
+###### Server controls (admin user)
+
+| Entity                          | What it does                                                                         |
+| ------------------------------- | ------------------------------------------------------------------------------------ |
+| `select.<server>_shield`        | Blue Iris' shield: Armed (green), Disarmed (red), Arming (yellow)                    |
+| `switch.<server>_profile_hold`  | On holds the current profile; off lets the schedule run. Attribute `lock`: run, hold or temporary |
+| `button.<server>_restart_web_server` | Restarts Blue Iris' web server (Configuration). The integration logs in again on the next poll |
+| `button.<server>_restart_ai`    | Restarts Blue Iris' AI (Configuration)                                               |
+
+Each can be turned off in Configure -> Server.
+
+###### Blue Iris log (admin user)
+
+New Blue Iris log messages are read on every poll. Each warning or error (or errors only, see Configure -> Blue Iris log) fires the event `blueiris_log` with `level`, `object` (camera or part of Blue Iris), `message`, `time` and `count`, and updates `sensor.<server>_last_message` (diagnostic). Messages from before Home Assistant started are not reported. For example, to be told about Blue Iris errors:
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: blueiris_log
+    event_data:
+      level: error
+actions:
+  - action: notify.mobile_app_phone
+    data:
+      title: "Blue Iris: {{ trigger.event.data.object }}"
+      message: "{{ trigger.event.data.message }}"
+```
 
 ###### Sensor - Uptime
 

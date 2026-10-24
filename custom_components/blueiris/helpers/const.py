@@ -445,6 +445,37 @@ OPTION_SECTION_SWITCHES = "profiles_schedules"
 OPTION_SECTION_SERVER = "server"
 OPTION_SECTION_CAMERA_CONTROLS = "camera_controls"
 
+# Server controls: key -> options key (all on by default)
+SERVER_CONTROL_SHIELD = "shield"
+SERVER_CONTROL_PROFILE_HOLD = "profile_hold"
+SERVER_CONTROL_RESTART_WEB = "restart_web_server"
+SERVER_CONTROL_RESTART_AI = "restart_ai"
+CONF_SERVER_CONTROLS = {
+    SERVER_CONTROL_SHIELD: "server_control_shield",
+    SERVER_CONTROL_PROFILE_HOLD: "server_control_profile_hold",
+    SERVER_CONTROL_RESTART_WEB: "server_control_restart_web_server",
+    SERVER_CONTROL_RESTART_AI: "server_control_restart_ai",
+}
+SERVER_CONTROL = "ServerControl"
+SERVER_CONTROL_KEY = "server_control"
+
+# status 'signal'
+SHIELD_OPTIONS = {"Disarmed": 0, "Armed": 1, "Arming": 2}
+# status 'lock' as documented in the status reply: 0 run, 1 hold, 2 temp
+PROFILE_LOCK_RUN = 0
+PROFILE_LOCK_HOLD = 1
+PROFILE_LOCK_TEMP = 2
+PROFILE_LOCK_NAMES = {0: "run", 1: "hold", 2: "temporary"}
+
+# Blue Iris log -> blueiris_log event and Last Message sensor
+OPTION_SECTION_LOG = "blue_iris_log"
+CONF_LOG_EVENTS = "log_events"
+CONF_LOG_MIN_LEVEL = "log_min_level"
+LOG_MIN_LEVELS = {"warning": 1, "error": 2}
+DEFAULT_LOG_MIN_LEVEL = "warning"
+BI_LOG_LEVELS = {0: "info", 1: "warning", 2: "error", 10: "user"}
+BI_LOG_EVENT = f"{DOMAIN}_log"
+
 # Camera controls (admin user): key -> options key
 CAMERA_CONTROL_ENABLE = "enable"
 CAMERA_CONTROL_PAUSE = "pause"

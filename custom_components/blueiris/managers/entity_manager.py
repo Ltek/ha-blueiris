@@ -278,6 +278,8 @@ class EntityManager:
 
         self.generate_auto_reset_server_switches(system_device_name, is_admin)
         self.generate_log_level_select(system_device_name)
+        self.generate_server_controls(system_device_name, is_admin)
+        self.generate_log_sensor(system_device_name, is_admin)
 
         mqtt_binary_sensors = []
         for camera in available_camera:
@@ -715,6 +717,111 @@ class EntityManager:
         entity.details = details
 
         return entity
+
+    def generate_server_controls(self, system_device_name, is_admin):
+        try:
+            if not is_admin:
+                return
+
+            enabled = self.config_data.server_controls
+            status = self.api.status
+            signal = status.get("signal")
+            lock = status.get("lock")
+
+            controls = [
+                (
+                    SERVER_CONTROL_SHIELD,
+                    DOMAIN_SELECT,
+                    "Shield",
+                    next((k for k, v in SHIELD_OPTIONS.items() if v == signal), None),
+                    "mdi:shield-home",
+                    {},
+                    {"signal": signal},
+                ),
+                (
+                    SERVER_CONTROL_PROFILE_HOLD,
+                    DOMAIN_SWITCH,
+                    "Profile Hold",
+                    None if lock is None else lock == PROFILE_LOCK_HOLD,
+                    "mdi:lock-clock",
+                    {},
+                    {
+                        "lock": PROFILE_LOCK_NAMES.get(lock, lock),
+                        "profile": status.get("profile"),
+                    },
+                ),
+                (
+                    SERVER_CONTROL_RESTART_WEB,
+                    DOMAIN_BUTTON,
+                    "Restart Web Server",
+                    None,
+                    "mdi:web-refresh",
+                    {
+                        ENTITY_CONFIG_CATEGORY: True,
+                        ENTITY_BUTTON_DEVICE_CLASS: ButtonDeviceClass.RESTART,
+                    },
+                    {},
+                ),
+                (
+                    SERVER_CONTROL_RESTART_AI,
+                    DOMAIN_BUTTON,
+                    "Restart AI",
+                    None,
+                    "mdi:robot-outline",
+                    {
+                        ENTITY_CONFIG_CATEGORY: True,
+                        ENTITY_BUTTON_DEVICE_CLASS: ButtonDeviceClass.RESTART,
+                    },
+                    {},
+                ),
+            ]
+
+            for key, domain, label, state, icon, details, attributes in controls:
+                if not enabled[key]:
+                    continue
+
+                entity = self._config_entity(
+                    domain,
+                    f"{self.integration_title} {label}",
+                    None,
+                    system_device_name,
+                    SERVER_CONTROL,
+                    state,
+                    icon,
+                    {SERVER_CONTROL_KEY: key, **details},
+                )
+                entity.attributes.update(attributes)
+                self.set_entity(domain, entity.name, entity)
+        except Exception as ex:
+            self.log_exception(ex, "Failed to generate server controls")
+
+    def generate_log_sensor(self, system_device_name, is_admin):
+        try:
+            if not is_admin or not self.config_data.log_events:
+                return
+
+            last = self.ha.last_log_entry or {}
+            message = last.get("msg")
+            date = last.get("date")
+
+            entity = self._server_sensor(
+                system_device_name,
+                "Last Message",
+                None if message is None else str(message)[:255],
+                "mdi:message-alert-outline",
+                {ENTITY_SENSOR_CATEGORY: EntityCategory.DIAGNOSTIC},
+                {
+                    "object": last.get("obj"),
+                    "level": BI_LOG_LEVELS.get(last.get("level"), last.get("level")),
+                    "time": None
+                    if not isinstance(date, (int, float))
+                    else datetime.fromtimestamp(date, tz=timezone.utc).isoformat(),
+                    "count": last.get("count"),
+                },
+            )
+            self.set_entity(DOMAIN_SENSOR, entity.name, entity)
+        except Exception as ex:
+            self.log_exception(ex, "Failed to generate Blue Iris log sensor")
 
     def generate_log_level_select(self, system_device_name):
         try:

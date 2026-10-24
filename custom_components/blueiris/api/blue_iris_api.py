@@ -5,6 +5,7 @@ import logging
 import sys
 import asyncio
 from typing import Optional
+from urllib.parse import quote
 
 import aiohttp
 from aiohttp import ClientSession, ClientTimeout
@@ -17,6 +18,8 @@ from ..helpers.const import (
     CONNECTION_STATE_CONNECTING,
     CONNECTION_STATE_ERROR,
     CONNECTION_STATE_UNREACHABLE,
+    PROFILE_LOCK_HOLD,
+    PROFILE_LOCK_RUN,
 )
 from ..managers.configuration_manager import ConfigManager
 from ..models.camera_data import CameraData
@@ -265,6 +268,43 @@ class BlueIrisApi:
             "camera": camera_short_name,
         })
 
+    async def _async_command(
+        self, payload: dict, cannot: str, rejected: str, require_admin: bool = True
+    ) -> dict:
+        """Send one JSON command, logging in again and retrying once.
+
+        Raises BlueIrisCommandError with Blue Iris' reason when the login or
+        the command fails, so a service call or button press surfaces the
+        problem instead of failing silently. Returns the response data.
+        """
+        if not self.is_logged_in and not await self.login():
+            raise BlueIrisCommandError(f"{cannot}: login to Blue Iris failed")
+
+        if require_admin and not self.data.get("admin", False):
+            raise BlueIrisCommandError(
+                f"{cannot}: Blue Iris user '{self.config_data.username}' is not an admin"
+            )
+
+        result = None
+        for attempt in range(2):
+            result = await self.async_post({**payload, "session": self.session_id})
+
+            if result is not None and result.get("result") == "success":
+                _LOGGER.debug(f"{payload} done, response: {result}")
+                data = result.get("data")
+                return data if isinstance(data, dict) else {}
+
+            # The session may have expired; log in again and retry once
+            if attempt == 0:
+                _LOGGER.debug(f"{payload} failed ({result}), retrying after login")
+                await self.login()
+
+        reason = None
+        if result is not None:
+            reason = (result.get("data") or {}).get("reason")
+
+        raise BlueIrisCommandError(f"{rejected}: {reason or result or 'no response'}")
+
     async def async_camera_command(
         self,
         camera_short_name,
@@ -273,57 +313,57 @@ class BlueIrisApi:
         cmd: str = "camconfig",
         require_admin: bool = True,
     ) -> dict:
-        """Send one camera command, logging in again and retrying once.
-
-        Raises BlueIrisCommandError with Blue Iris' reason when the login or
-        the command fails, so a service call or button press surfaces the
-        problem instead of failing silently. Returns the response data.
-        """
         _LOGGER.debug(f"Camera {camera_short_name}: {action} {values}")
 
-        if not self.is_logged_in and not await self.login():
-            raise BlueIrisCommandError(
-                f"Cannot {action} camera {camera_short_name}: login to Blue Iris failed"
-            )
-
-        if require_admin and not self.data.get("admin", False):
-            raise BlueIrisCommandError(
-                f"Cannot {action} camera {camera_short_name}: "
-                f"Blue Iris user '{self.config_data.username}' is not an admin"
-            )
-
-        result = None
-        for attempt in range(2):
-            result = await self.async_post({
-                "cmd": cmd,
-                "session": self.session_id,
-                "camera": camera_short_name,
-                **values,
-            })
-
-            if result is not None and result.get("result") == "success":
-                _LOGGER.debug(
-                    f"Camera {camera_short_name}: {action} done, response: {result}"
-                )
-                data = result.get("data")
-                return data if isinstance(data, dict) else {}
-
-            # The session may have expired; log in again and retry once
-            if attempt == 0:
-                _LOGGER.debug(
-                    f"{action} of {camera_short_name} failed ({result}), "
-                    "retrying after login"
-                )
-                await self.login()
-
-        reason = None
-        if result is not None:
-            reason = (result.get("data") or {}).get("reason")
-
-        raise BlueIrisCommandError(
-            f"Blue Iris rejected {action} of camera {camera_short_name}: "
-            f"{reason or result or 'no response'}"
+        return await self._async_command(
+            {"cmd": cmd, "camera": camera_short_name, **values},
+            f"Cannot {action} camera {camera_short_name}",
+            f"Blue Iris rejected {action} of camera {camera_short_name}",
+            require_admin,
         )
+
+    async def async_status_command(self, action: str, values: dict) -> dict:
+        """status command that changes something (shield, profile...)."""
+        data = await self._async_command(
+            {"cmd": "status", **values},
+            f"Cannot {action}",
+            f"Blue Iris rejected {action}",
+        )
+        self.status.update(data)
+        return data
+
+    async def async_admin_http(self, query: str, action: str, allow_disconnect=False):
+        """Documented /admin?... command, authenticated with the session.
+
+        allow_disconnect: the command restarts what answers it (web server),
+        so a dropped connection means it was carried out.
+        """
+        if not self.is_logged_in and not await self.login():
+            raise BlueIrisCommandError(f"Cannot {action}: login to Blue Iris failed")
+
+        url = f"{self.base_url}/admin?{query}&session={self.session_id}"
+
+        try:
+            await self.ensure_session()
+            async with self.session.get(url, ssl=False) as response:
+                body = (await response.text())[:200]
+                _LOGGER.debug(f"/admin?{query}: HTTP {response.status}, {body!r}")
+
+                rejected = any(
+                    word in body.lower()
+                    for word in ("authorization required", "denied", "error", "invalid")
+                )
+                if response.status == 200 and not rejected:
+                    return
+
+                reason = f"HTTP {response.status} {body.strip()}"
+        except (aiohttp.ClientError, asyncio.TimeoutError) as ex:
+            if allow_disconnect:
+                _LOGGER.debug(f"/admin?{query}: connection closed ({ex}), as expected")
+                return
+            reason = str(ex) or type(ex).__name__
+
+        raise BlueIrisCommandError(f"Blue Iris rejected {action}: {reason}")
 
     async def reset_camera(self, camera_short_name):
         """Reset (reconnect) a camera, same as Blue Iris' Reset action."""
@@ -366,30 +406,69 @@ class BlueIrisApi:
             _LOGGER.debug(f"JSON snapshot failed ({json_error}), trying /admin")
             first_error = json_error
 
-        url = f"{self.base_url}/admin"
-        params = {"camera": camera_short_name, "snapshot": "", "session": self.session_id}
-
         try:
-            await self.ensure_session()
-            async with self.session.get(url, params=params, ssl=False) as response:
-                body = (await response.text())[:200]
-                _LOGGER.debug(f"/admin snapshot: HTTP {response.status}, {body!r}")
+            await self.async_admin_http(
+                f"camera={quote(camera_short_name)}&snapshot", "snapshot"
+            )
+        except BlueIrisCommandError as admin_error:
+            raise BlueIrisCommandError(
+                f"Blue Iris rejected snapshot of camera {camera_short_name}: "
+                f"JSON: {first_error}; /admin: {admin_error}"
+            ) from admin_error
 
-                rejected = any(
-                    word in body.lower()
-                    for word in ("authorization required", "denied", "error", "invalid")
-                )
-                if response.status == 200 and not rejected:
-                    return
+    # ---- server ----------------------------------------------------------
 
-                reason = f"HTTP {response.status} {body.strip()}"
-        except aiohttp.ClientError as ex:
-            reason = str(ex)
+    async def set_shield(self, signal: int):
+        await self.async_status_command("shield change", {"signal": signal})
 
-        raise BlueIrisCommandError(
-            f"Blue Iris rejected snapshot of camera {camera_short_name}: "
-            f"JSON: {first_error}; /admin: {reason}"
+    async def set_profile_hold(self, hold: bool):
+        """Hold the current profile, or let the schedule run again.
+
+        Blue Iris has no direct 'set lock' in JSON: sending the current
+        profile again holds it, profile -1 toggles hold/run. Check the result.
+        """
+        for _attempt in range(2):
+            lock = self.status.get("lock")
+
+            if hold and lock == PROFILE_LOCK_HOLD:
+                return
+            if not hold and lock == PROFILE_LOCK_RUN:
+                return
+
+            if hold:
+                profile = self.status.get("profile", 0)
+                await self.async_status_command("profile hold", {"profile": profile})
+            else:
+                await self.async_status_command("profile run", {"profile": -1})
+
+        lock = self.status.get("lock")
+        if lock != (PROFILE_LOCK_HOLD if hold else PROFILE_LOCK_RUN):
+            raise BlueIrisCommandError(
+                f"Blue Iris did not {'hold' if hold else 'release'} the profile "
+                f"(lock is {lock})"
+            )
+
+    async def restart_web_server(self):
+        await self.async_admin_http("server", "web server restart", allow_disconnect=True)
+
+    async def restart_ai(self):
+        await self.async_admin_http("ai", "AI restart")
+
+    async def load_log(self, after: int) -> list[dict]:
+        """Blue Iris log entries newer than 'after' (UTC seconds)."""
+        result = await self.async_post(
+            {"cmd": "log", "session": self.session_id, "aftertime": after}
         )
+
+        if result is None or result.get("result") != "success":
+            _LOGGER.debug(f"Blue Iris log not read: {result}")
+            return []
+
+        data = result.get("data")
+
+        return [entry for entry in data if isinstance(entry, dict)] if isinstance(
+            data, list
+        ) else []
 
     async def move_to_preset(self, camera_short_name, preset):
         _LOGGER.debug(f"Moving {camera_short_name} to preset {preset}")

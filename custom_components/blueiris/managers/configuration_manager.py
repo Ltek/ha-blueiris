@@ -86,6 +86,14 @@ class ConfigManager:
             for key, option_key in CONF_CAMERA_SENSORS.items()
         }
 
+        result.server_controls = {
+            key: bool(options.get(option_key, True))
+            for key, option_key in CONF_SERVER_CONTROLS.items()
+        }
+        result.log_events = bool(options.get(CONF_LOG_EVENTS, True))
+        level = options.get(CONF_LOG_MIN_LEVEL, DEFAULT_LOG_MIN_LEVEL)
+        result.log_min_level = level if level in LOG_MIN_LEVELS else DEFAULT_LOG_MIN_LEVEL
+
         result.server_sensors = {
             key: bool(options.get(option_key, True))
             for key, option_key in CONF_SERVER_SENSORS.items()

@@ -38,6 +38,8 @@ async def async_unload_entry(_hass, config_entry):
 def get_button(hass: HomeAssistant, host: str, entity: EntityData):
     if entity.type == CAMERA_CONTROL:
         button = BlueIrisCameraControlButton()
+    elif entity.type == SERVER_CONTROL:
+        button = BlueIrisServerButton()
     else:
         button = BlueIrisResetButton()
 
@@ -65,6 +67,28 @@ class BlueIrisCameraControlButton(ButtonEntity, BlueIrisEntity):
                 await self.api.snapshot_to_database(self.entity.id)
             else:
                 await self.api.reboot_camera(self.entity.id)
+        except BlueIrisCommandError as ex:
+            _LOGGER.error(str(ex))
+            raise HomeAssistantError(str(ex)) from ex
+
+
+class BlueIrisServerButton(ButtonEntity, BlueIrisEntity):
+    """Restart Blue Iris' web server or AI."""
+
+    @property
+    def icon(self):
+        return self.entity.icon
+
+    async def async_press(self) -> None:
+        key = self.entity.details[SERVER_CONTROL_KEY]
+
+        try:
+            if key == SERVER_CONTROL_RESTART_WEB:
+                await self.api.restart_web_server()
+                # Its sessions end with it
+                self.api.is_logged_in = False
+            else:
+                await self.api.restart_ai()
         except BlueIrisCommandError as ex:
             _LOGGER.error(str(ex))
             raise HomeAssistantError(str(ex)) from ex

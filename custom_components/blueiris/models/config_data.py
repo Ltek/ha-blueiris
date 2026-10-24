@@ -27,6 +27,9 @@ class ConfigData:
     server_sensors: dict
     camera_controls: dict
     camera_sensors: dict
+    server_controls: dict
+    log_events: bool
+    log_min_level: str
 
     def __init__(self):
         self.name = DEFAULT_NAME
@@ -46,6 +49,9 @@ class ConfigData:
             key: [] if key in CAMERA_CONTROLS_DEFAULT_OFF else None
             for key in CONF_CAMERA_CONTROLS
         }
+        self.server_controls = {key: True for key in CONF_SERVER_CONTROLS}
+        self.log_events = True
+        self.log_min_level = DEFAULT_LOG_MIN_LEVEL
         self.camera_sensors = {
             key: [] if key in CAMERA_SENSORS_DEFAULT_OFF else None
             for key in CONF_CAMERA_SENSORS

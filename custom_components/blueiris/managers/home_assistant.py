@@ -47,6 +47,10 @@ class BlueIrisHomeAssistant:
         self._storage_manager = None
         self._auto_reset_manager: Optional[AutoResetManager] = None
         self._last_motion_refresh: Optional[datetime] = None
+        # Blue Iris log: newest entry time read, and the last reported entry
+        self._log_after: Optional[int] = None
+        self._log_seen: set = set()
+        self.last_log_entry: Optional[dict] = None
         self._config_generator: Optional[AdvancedConfigurationGenerator] = None
 
         self._config_manager = ConfigManager(password_manager)
@@ -204,6 +208,7 @@ class BlueIrisHomeAssistant:
 
             await self._api.async_update()
             await self._async_refresh_motion_states()
+            await self._async_read_log()
 
             self.entity_manager.update_camera_problems()
             await self._auto_reset_manager.async_evaluate()
@@ -218,6 +223,57 @@ class BlueIrisHomeAssistant:
             _LOGGER.error(f"Failed to async_update, Error: {ex}, Line: {line_number}")
 
         self._is_updating = False
+
+    async def _async_read_log(self):
+        """Report new Blue Iris warnings / errors as blueiris_log events."""
+        config_data = self.config_data
+
+        if not config_data.log_events or not self._api.data.get("admin", False):
+            return
+
+        if self._log_after is None:
+            # Start from now: older messages were before this start
+            self._log_after = int(datetime.now(timezone.utc).timestamp())
+            return
+
+        entries = await self._api.load_log(self._log_after)
+        min_level = LOG_MIN_LEVELS[config_data.log_min_level]
+        seen = set()
+
+        for entry in sorted(
+            entries, key=lambda e: e.get("date", 0) if isinstance(e.get("date"), (int, float)) else 0
+        ):
+            date = entry.get("date")
+            key = (date, entry.get("obj"), entry.get("msg"))
+            seen.add(key)
+
+            if isinstance(date, (int, float)):
+                self._log_after = max(self._log_after, int(date))
+
+            # Entries in the 'after' second come again next time
+            if key in self._log_seen:
+                continue
+
+            level = entry.get("level")
+            if not isinstance(level, int) or level not in (1, 2) or level < min_level:
+                continue
+
+            self.last_log_entry = entry
+            self._hass.bus.async_fire(
+                BI_LOG_EVENT,
+                {
+                    "level": BI_LOG_LEVELS.get(level, level),
+                    "object": entry.get("obj"),
+                    "message": entry.get("msg"),
+                    "time": datetime.fromtimestamp(date, tz=timezone.utc).isoformat()
+                    if isinstance(date, (int, float))
+                    else None,
+                    "count": entry.get("count"),
+                },
+            )
+
+        # Only entries of the newest second can come back
+        self._log_seen = {k for k in seen | self._log_seen if k[0] == self._log_after}
 
     async def _async_refresh_motion_states(self):
         """Read motion detection (not in camlist) every few minutes."""
