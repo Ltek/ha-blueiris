@@ -18,7 +18,11 @@ from homeassistant.components.camera import (
 )
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, CONF_VERIFY_SSL
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import TemplateError
+from homeassistant.exceptions import (
+    HomeAssistantError,
+    ServiceValidationError,
+    TemplateError,
+)
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -33,8 +37,10 @@ from .helpers.const import (
     DOMAIN,
     NOT_AVAILABLE,
     SERVICE_MOVE_TO_PRESET,
+    SERVICE_RESET_CAMERA,
     SERVICE_TRIGGER_CAMERA,
 )
+from .api.blue_iris_api import BlueIrisCommandError
 from .models.base_entity import BlueIrisEntity, async_setup_base_entry
 from .models.entity_data import EntityData
 
@@ -62,6 +68,11 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
             vol.Required("preset"): cv.positive_int,
         },
         SERVICE_MOVE_TO_PRESET,
+    )
+    platform.async_register_entity_service(
+        SERVICE_RESET_CAMERA,
+        {},
+        SERVICE_RESET_CAMERA,
     )
 
 
@@ -192,3 +203,17 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
         else:
             for grouped_camera in self.entity.attributes[BI_CAMERA_ATTR_GROUP_CAMERAS]:
                 await self.api.move_to_preset(grouped_camera, preset)
+
+    async def reset_camera(self):
+        # A group has no connection of its own; resetting every member at
+        # once would drop all of their streams, so require a real camera.
+        if self.entity.attributes[BI_CAMERA_ATTR_GROUP_CAMERAS] != NOT_AVAILABLE:
+            raise ServiceValidationError(
+                f"{self.name} is a camera group; reset_camera needs a single camera"
+            )
+
+        try:
+            await self.api.reset_camera(self.entity.id)
+        except BlueIrisCommandError as ex:
+            _LOGGER.error(str(ex))
+            raise HomeAssistantError(str(ex)) from ex

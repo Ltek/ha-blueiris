@@ -200,6 +200,8 @@ Trigger Camera: Provides the ability to manually trigger a camera or camera grou
 
 Move to Preset: Provides the ability to move a camera to a specified preset
 
+Reset Camera: Resets (reconnects) a single camera, the same as Blue Iris' Reset command. The stream drops for a few seconds. Requires the integration's Blue Iris user to be an admin; camera groups are rejected
+
 ## Lovelace UI Configuration
 
 [Example of UI layout](https://github.com/elad-bar/ha-blueiris/blob/master/docs/configs/casting/configuration.yaml)
