@@ -6,6 +6,16 @@ trigger_camera:
       integration: blueiris
       domain: camera
 
+reset_camera:
+  name: Reset Camera
+  description: >-
+    Resets (reconnects) a camera in Blue Iris, the same as its Reset command.
+    The stream drops briefly. Requires a Blue Iris admin user.
+  target:
+    entity:
+      integration: blueiris
+      domain: camera
+
 move_to_preset:
   name: Move to Preset
   description: Moves the selected camera to the specified preset

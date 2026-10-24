@@ -23,6 +23,10 @@ MAX_RETRIES = 3
 RETRY_DELAY = 1  # seconds
 
 
+class BlueIrisCommandError(Exception):
+    """A Blue Iris command could not be completed."""
+
+
 class BlueIrisApi:
     """Handles Blue Iris data retrieval and control."""
 
@@ -209,6 +213,55 @@ class BlueIrisApi:
             "session": self.session_id,
             "camera": camera_short_name,
         })
+
+    async def reset_camera(self, camera_short_name):
+        """Reset (reconnect) a camera via camconfig, same as BI's "Reset" action.
+
+        Requires a Blue Iris user with admin rights. Raises BlueIrisCommandError
+        with the reason when the login or the command fails, so a service call
+        surfaces the problem instead of failing silently.
+        """
+        _LOGGER.debug(f"Resetting camera {camera_short_name}")
+
+        if not self.is_logged_in and not await self.login():
+            raise BlueIrisCommandError(
+                f"Cannot reset camera {camera_short_name}: login to Blue Iris failed"
+            )
+
+        if not self.data.get("admin", False):
+            raise BlueIrisCommandError(
+                f"Cannot reset camera {camera_short_name}: "
+                f"Blue Iris user '{self.config_data.username}' is not an admin"
+            )
+
+        result = None
+        for attempt in range(2):
+            result = await self.async_post({
+                "cmd": "camconfig",
+                "session": self.session_id,
+                "camera": camera_short_name,
+                "reset": True,
+            })
+
+            if result is not None and result.get("result") == "success":
+                _LOGGER.debug(f"Camera {camera_short_name} reset, response: {result}")
+                return
+
+            # The session may have expired; log in again and retry once
+            if attempt == 0:
+                _LOGGER.debug(
+                    f"Reset of {camera_short_name} failed ({result}), retrying after login"
+                )
+                await self.login()
+
+        reason = None
+        if result is not None:
+            reason = (result.get("data") or {}).get("reason")
+
+        raise BlueIrisCommandError(
+            f"Blue Iris rejected reset of camera {camera_short_name}: "
+            f"{reason or result or 'no response'}"
+        )
 
     async def move_to_preset(self, camera_short_name, preset):
         _LOGGER.debug(f"Moving {camera_short_name} to preset {preset}")

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.24
+
+- Add `blueiris.reset_camera` service: resets (reconnects) a camera through the JSON API (`camconfig` with `reset`). Requires an admin user; raises an error with Blue Iris' reason on failure
+
 ## 1.0.23
 
 - API Updates (thanks garrywma)
