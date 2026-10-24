@@ -15,6 +15,7 @@ from homeassistant.helpers.entity_registry import EntityRegistry
 from homeassistant.util import slugify
 
 from ..api.blue_iris_api import BlueIrisApi
+from ..helpers.log_level import get_log_level
 from ..helpers.const import *
 from ..models.camera_data import CameraData
 from ..models.config_data import ConfigData
@@ -233,6 +234,7 @@ class EntityManager:
         self.generate_server_sensors(system_device_name)
 
         self.generate_auto_reset_server_switches(system_device_name, is_admin)
+        self.generate_log_level_select(system_device_name)
 
         mqtt_binary_sensors = []
         for camera in available_camera:
@@ -645,6 +647,23 @@ class EntityManager:
         entity.details = details
 
         return entity
+
+    def generate_log_level_select(self, system_device_name):
+        try:
+            name = f"{self.integration_title} {LOG_LEVEL_NAME}"
+            entity = self._config_entity(
+                DOMAIN_SELECT,
+                name,
+                None,
+                system_device_name,
+                LOG_LEVEL_NAME,
+                get_log_level(),
+                LOG_LEVEL_ICON,
+                {},
+            )
+            self.set_entity(DOMAIN_SELECT, name, entity)
+        except Exception as ex:
+            self.log_exception(ex, "Failed to generate log level select")
 
     def generate_auto_reset_server_switches(self, system_device_name, is_admin):
         try:

@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 from ..managers.home_assistant import BlueIrisHomeAssistant
 from ..managers.password_manager import PasswordManager
 from .const import *
+from .log_level import set_log_level
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,20 +49,15 @@ async def async_set_ha(hass: HomeAssistant, entry: ConfigEntry):
 
 
 async def handle_log_level(hass: HomeAssistant, entry: ConfigEntry):
+    """Apply the 'Default on Startup' level from the options.
+
+    Default leaves Home Assistant's logging setup alone. Set directly on the
+    logger, so it works without the logger integration in configuration.yaml.
+    """
     log_level = entry.options.get(CONF_LOG_LEVEL, LOG_LEVEL_DEFAULT)
 
-    if log_level == LOG_LEVEL_DEFAULT:
+    if log_level not in LOG_LEVEL_SELECT_OPTIONS:
         return
 
-    log_level_data = {f"custom_components.{DOMAIN}": log_level.lower()}
-
-    try:
-        await hass.services.async_call(DOMAIN_LOGGER, SERVICE_SET_LEVEL, log_level_data)
-
-    except Exception as ex:
-        exc_type, exc_obj, tb = sys.exc_info()
-        line_number = tb.tb_lineno
-
-        _LOGGER.error(
-            f"Failed to set log level. Ensure you have logging enabled in configuration.yaml., error: {ex}, line: {line_number}"
-        )
+    set_log_level(log_level)
+    _LOGGER.debug(f"Log level set to {log_level} (Default on Startup)")
