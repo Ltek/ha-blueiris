@@ -43,6 +43,11 @@ def _parse_uptime(value) -> Optional[int]:
     return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
 
+def utcnow() -> datetime:
+    """Current time; one place so tests can control the clock."""
+    return datetime.now(timezone.utc)
+
+
 def get_camera_problem(camera: CameraData) -> Optional[str]:
     """Return why a camera needs attention, or None when it is fine.
 
@@ -85,7 +90,13 @@ class EntityManager:
         self.domain_component_manager = {}
         self.entities = {}
         self.mqtt_states = {}
+        # Problem state per camera id, refreshed once per poll by
+        # update_camera_problems (MQTT-driven updates reuse it)
+        self.problem_data_fresh = False
+        self.camera_problems = {}
         self.problem_since = {}
+        self.last_problem = {}
+        self.last_problem_since = {}
 
     @property
     def entity_registry(self) -> EntityRegistry:
@@ -221,13 +232,14 @@ class EntityManager:
 
         self.generate_server_sensors(system_device_name)
 
-        problem_data_fresh = self.is_problem_data_fresh()
+        self.generate_auto_reset_server_switches(system_device_name, is_admin)
 
         mqtt_binary_sensors = []
         for camera in available_camera:
             self.generate_camera_component(camera)
-            self.generate_camera_problem_sensor(camera, problem_data_fresh)
+            self.generate_camera_problem_sensor(camera)
             self.generate_camera_reset_button(camera, is_admin)
+            self.generate_camera_auto_reset_entities(camera, is_admin)
             current_mqtt_binary_sensors = self.generate_camera_binary_sensors(camera)
 
             mqtt_binary_sensors.extend(current_mqtt_binary_sensors)
@@ -522,21 +534,55 @@ class EntityManager:
 
         return uptime is None or uptime >= PROBLEM_STARTUP_GRACE
 
-    def get_camera_problem_sensor(
-        self, camera: CameraData, data_fresh: bool
-    ) -> EntityData:
+    def update_camera_problems(self):
+        """Work out each camera's problem once per poll."""
+        fresh = self.is_problem_data_fresh()
+        self.problem_data_fresh = fresh
+
+        if not fresh:
+            # Keep the last known problems and their start times; nothing is
+            # judged until the data is fresh again
+            return
+
+        now = utcnow()
+        seen = set()
+
+        for camera in self.api.camera_list:
+            if not camera.is_physical:
+                continue
+
+            seen.add(camera.id)
+            problem = get_camera_problem(camera)
+
+            if problem is None:
+                self.camera_problems.pop(camera.id, None)
+                self.problem_since.pop(camera.id, None)
+                continue
+
+            self.camera_problems[camera.id] = problem
+            self.last_problem[camera.id] = problem
+
+            if camera.id not in self.problem_since:
+                self.problem_since[camera.id] = now
+                self.last_problem_since[camera.id] = now
+
+        for camera_id in list(self.camera_problems):
+            if camera_id not in seen:
+                self.camera_problems.pop(camera_id, None)
+                self.problem_since.pop(camera_id, None)
+
+    def is_problem_sensor_allowed(self, camera: CameraData) -> bool:
+        allowed = self.config_data.allowed_problem_sensor
+
+        return camera.is_physical and (allowed is None or camera.id in allowed)
+
+    def get_camera_problem_sensor(self, camera: CameraData) -> EntityData:
         device_name = self.device_manager.get_camera_device_name(camera)
         entity_name = f"{self.integration_title} {camera.name} {SENSOR_PROBLEM_NAME}"
         unique_id = f"{DOMAIN}-{DOMAIN_BINARY_SENSOR}-{entity_name}"
 
-        problem = get_camera_problem(camera) if data_fresh else None
-
-        if problem is None:
-            if data_fresh:
-                self.problem_since.pop(camera.id, None)
-        elif camera.id not in self.problem_since:
-            self.problem_since[camera.id] = datetime.now(timezone.utc)
-
+        data_fresh = self.problem_data_fresh
+        problem = self.camera_problems.get(camera.id) if data_fresh else None
         since = self.problem_since.get(camera.id)
         data = camera.data
 
@@ -551,6 +597,10 @@ class EntityManager:
             "no_signal_count": data.get("nNoSignal"),
             "error": data.get("error"),
         }
+
+        auto_reset = self.ha.auto_reset_manager
+        if auto_reset is not None and self.api.data.get("admin", False):
+            attributes.update(auto_reset.status(camera.id))
 
         entity = EntityData()
 
@@ -569,20 +619,114 @@ class EntityManager:
 
         return entity
 
-    def generate_camera_problem_sensor(self, camera: CameraData, data_fresh: bool):
+    def generate_camera_problem_sensor(self, camera: CameraData):
         try:
-            allowed = self.config_data.allowed_problem_sensor
-
-            if not camera.is_physical:
+            if not self.is_problem_sensor_allowed(camera):
                 return
 
-            if allowed is not None and camera.id not in allowed:
-                return
-
-            entity = self.get_camera_problem_sensor(camera, data_fresh)
+            entity = self.get_camera_problem_sensor(camera)
             self.set_entity(DOMAIN_BINARY_SENSOR, entity.name, entity)
         except Exception as ex:
             self.log_exception(ex, f"Failed to generate problem sensor for {camera}")
+
+    def _config_entity(
+        self, domain, name, unique_suffix, device_name, entity_type, state, icon, details
+    ) -> EntityData:
+        entity = EntityData()
+
+        entity.id = unique_suffix
+        entity.unique_id = f"{DOMAIN}-{domain}-{name}"
+        entity.name = name
+        entity.state = state
+        entity.attributes = {ATTR_FRIENDLY_NAME: name}
+        entity.icon = icon
+        entity.device_name = device_name
+        entity.type = entity_type
+        entity.details = details
+
+        return entity
+
+    def generate_auto_reset_server_switches(self, system_device_name, is_admin):
+        try:
+            auto_reset = self.ha.auto_reset_manager
+
+            if auto_reset is None or not is_admin:
+                return
+
+            for key, label, icon in [
+                (AUTO_RESET_KEY_ENABLED, AUTO_RESET_NAME, AUTO_RESET_ICON),
+                (
+                    AUTO_RESET_KEY_NOTIFICATIONS,
+                    AUTO_RESET_NOTIFICATIONS_NAME,
+                    AUTO_RESET_NOTIFICATIONS_ICON,
+                ),
+            ]:
+                name = f"{self.integration_title} {label}"
+                state = auto_reset.enabled if key == AUTO_RESET_KEY_ENABLED else (
+                    auto_reset.notifications
+                )
+                entity = self._config_entity(
+                    DOMAIN_SWITCH,
+                    name,
+                    None,
+                    system_device_name,
+                    AUTO_RESET_SERVER_SWITCH,
+                    state,
+                    icon,
+                    {AUTO_RESET_SETTING: key},
+                )
+                self.set_entity(DOMAIN_SWITCH, name, entity)
+        except Exception as ex:
+            self.log_exception(ex, "Failed to generate auto reset server switches")
+
+    def generate_camera_auto_reset_entities(self, camera: CameraData, is_admin):
+        try:
+            auto_reset = self.ha.auto_reset_manager
+
+            # Resetting needs admin rights; only cameras that are watched
+            if auto_reset is None or not is_admin:
+                return
+
+            if not self.is_problem_sensor_allowed(camera):
+                return
+
+            device_name = self.device_manager.get_camera_device_name(camera)
+            settings = auto_reset.camera_settings(camera.id)
+            base = f"{self.integration_title} {camera.name} {AUTO_RESET_NAME}"
+
+            switch = self._config_entity(
+                DOMAIN_SWITCH,
+                base,
+                camera.id,
+                device_name,
+                AUTO_RESET_CAMERA_SWITCH,
+                settings[AUTO_RESET_KEY_ENABLED],
+                AUTO_RESET_ICON,
+                {AUTO_RESET_SETTING: AUTO_RESET_KEY_ENABLED},
+            )
+            self.set_entity(DOMAIN_SWITCH, switch.name, switch)
+
+            for key, label, unit, icon in AUTO_RESET_NUMBERS:
+                minimum, maximum, step = AUTO_RESET_LIMITS[key]
+                number = self._config_entity(
+                    DOMAIN_NUMBER,
+                    f"{base} {label}",
+                    camera.id,
+                    device_name,
+                    AUTO_RESET_NUMBER,
+                    settings[key],
+                    icon,
+                    {
+                        AUTO_RESET_SETTING: key,
+                        ENTITY_NUMBER_MIN: minimum,
+                        ENTITY_NUMBER_MAX: maximum,
+                        ENTITY_NUMBER_STEP: step,
+                        ENTITY_NUMBER_UNIT: unit,
+                    },
+                )
+                self.set_entity(DOMAIN_NUMBER, number.name, number)
+        except Exception as ex:
+            self.log_exception(ex, f"Failed to generate auto reset entities for {camera}")
 
     def generate_camera_reset_button(self, camera: CameraData, is_admin: bool):
         try:

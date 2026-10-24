@@ -6,6 +6,7 @@ https://home-assistant.io/components/switch.blueiris/
 import logging
 
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 
 from .helpers.const import *
@@ -33,10 +34,53 @@ async def async_unload_entry(_hass, config_entry):
 
 
 def get_switch(hass: HomeAssistant, host: str, entity: EntityData):
-    switch = BlueIrisProfileAndScheduleSwitch()
+    if entity.type in (AUTO_RESET_SERVER_SWITCH, AUTO_RESET_CAMERA_SWITCH):
+        switch = BlueIrisAutoResetSwitch()
+    else:
+        switch = BlueIrisProfileAndScheduleSwitch()
+
     switch.initialize(hass, host, entity, CURRENT_DOMAIN)
 
     return switch
+
+
+class BlueIrisAutoResetSwitch(SwitchEntity, BlueIrisEntity):
+    """Auto reset on/off: per camera, or server-wide (master / notifications).
+
+    Takes effect on the next poll; no reload needed.
+    """
+
+    _attr_entity_category = EntityCategory.CONFIG
+
+    @property
+    def is_on(self):
+        return bool(self.entity.state)
+
+    @property
+    def icon(self):
+        return self.entity.icon
+
+    async def async_turn_on(self, **kwargs):
+        await self._async_set(True)
+
+    async def async_turn_off(self, **kwargs):
+        await self._async_set(False)
+
+    async def _async_set(self, value: bool):
+        auto_reset = self.ha.auto_reset_manager
+        key = self.entity.details[AUTO_RESET_SETTING]
+
+        if self.entity.type == AUTO_RESET_CAMERA_SWITCH:
+            auto_reset.set_camera_value(self.entity.id, key, value)
+        else:
+            auto_reset.set_flag(key, value)
+
+        self.entity.state = value
+        self.async_write_ha_state()
+
+        # Refresh the Problem sensors' auto reset attributes
+        self.entity_manager.update()
+        await self.ha.dispatch_all()
 
 
 class BlueIrisProfileAndScheduleSwitch(SwitchEntity, BlueIrisEntity):

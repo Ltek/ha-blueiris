@@ -13,6 +13,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.components.button import DOMAIN as DOMAIN_BUTTON
 from homeassistant.components.camera import DOMAIN as DOMAIN_CAMERA
+from homeassistant.components.number import DOMAIN as DOMAIN_NUMBER
 from homeassistant.components.sensor import DOMAIN as DOMAIN_SENSOR
 from homeassistant.components.switch import DOMAIN as DOMAIN_SWITCH
 from homeassistant.const import (
@@ -192,6 +193,65 @@ ENTITY_SENSOR_OPTIONS = "options"
 ENTITY_SENSOR_CATEGORY = "entity_category"
 ENTITY_AVAILABLE = "available"
 ENTITY_BUTTON_DEVICE_CLASS = "button_device_class"
+ENTITY_NUMBER_MIN = "native_min_value"
+ENTITY_NUMBER_MAX = "native_max_value"
+ENTITY_NUMBER_STEP = "native_step"
+ENTITY_NUMBER_UNIT = "native_unit_of_measurement"
+
+# Auto reset
+AUTO_RESET_NAME = "Auto Reset"
+AUTO_RESET_NOTIFICATIONS_NAME = "Auto Reset Notifications"
+AUTO_RESET_ICON = "mdi:restart-alert"
+AUTO_RESET_NOTIFICATIONS_ICON = "mdi:message-alert"
+
+AUTO_RESET_SERVER_SWITCH = "AutoResetServerSwitch"
+AUTO_RESET_CAMERA_SWITCH = "AutoResetCameraSwitch"
+AUTO_RESET_NUMBER = "AutoResetNumber"
+AUTO_RESET_SETTING = "auto_reset_setting"
+
+AUTO_RESET_KEY_ENABLED = "enabled"
+AUTO_RESET_KEY_NOTIFICATIONS = "notifications"
+AUTO_RESET_KEY_CAMERAS = "cameras"
+AUTO_RESET_KEY_DELAY = "delay"
+AUTO_RESET_KEY_ATTEMPTS = "attempts"
+AUTO_RESET_KEY_INTERVAL = "interval"
+
+AUTO_RESET_CAMERA_DEFAULTS = {
+    AUTO_RESET_KEY_ENABLED: False,
+    AUTO_RESET_KEY_DELAY: 2.0,  # minutes before the first reset
+    AUTO_RESET_KEY_ATTEMPTS: 3,
+    AUTO_RESET_KEY_INTERVAL: 90,  # seconds between resets
+}
+
+# key: (min, max, step)
+AUTO_RESET_LIMITS = {
+    AUTO_RESET_KEY_DELAY: (0.5, 60, 0.5),
+    AUTO_RESET_KEY_ATTEMPTS: (1, 10, 1),
+    AUTO_RESET_KEY_INTERVAL: (30, 900, 10),
+}
+
+# key, entity name suffix, unit, icon
+AUTO_RESET_NUMBERS = [
+    (AUTO_RESET_KEY_DELAY, "Delay", "min", "mdi:timer-sand"),
+    (AUTO_RESET_KEY_ATTEMPTS, "Attempts", None, "mdi:counter"),
+    (AUTO_RESET_KEY_INTERVAL, "Interval", "s", "mdi:timer-refresh-outline"),
+]
+
+AUTO_RESET_STATE_OFF = "off"
+AUTO_RESET_STATE_PAUSED = "paused"
+AUTO_RESET_STATE_IDLE = "idle"
+AUTO_RESET_STATE_WAITING = "waiting"
+AUTO_RESET_STATE_RESETTING = "resetting"
+AUTO_RESET_STATE_GAVE_UP = "gave_up"
+
+ATTR_AUTO_RESET_STATE = "auto_reset_state"
+ATTR_AUTO_RESET_ATTEMPTS = "auto_reset_attempts"
+ATTR_AUTO_RESET_LAST = "auto_reset_last"
+
+AUTO_RESET_EVENT = f"{DOMAIN}_auto_reset"
+AUTO_RESET_EVENT_RESET = "reset"
+AUTO_RESET_EVENT_RECOVERED = "recovered"
+AUTO_RESET_EVENT_GAVE_UP = "gave_up"
 
 NEGATIVE_SENSOR_STATE = [SENSOR_CONNECTIVITY_NAME]
 CAMERA_SENSORS = {
@@ -290,6 +350,7 @@ BI_UPDATE_SIGNAL_BINARY_SENSOR = f"{DOMAIN}_{DOMAIN_BINARY_SENSOR}_UPDATE_SIGNAL
 BI_UPDATE_SIGNAL_SWITCH = f"{DOMAIN}_{DOMAIN_SWITCH}_UPDATE_SIGNAL"
 BI_UPDATE_SIGNAL_SENSOR = f"{DOMAIN}_{DOMAIN_SENSOR}_UPDATE_SIGNAL"
 BI_UPDATE_SIGNAL_BUTTON = f"{DOMAIN}_{DOMAIN_BUTTON}_UPDATE_SIGNAL"
+BI_UPDATE_SIGNAL_NUMBER = f"{DOMAIN}_{DOMAIN_NUMBER}_UPDATE_SIGNAL"
 
 CONFIG_FIELDS = {
     vol.Required(CONF_HOST): str,
@@ -305,6 +366,7 @@ SUPPORTED_DOMAINS = [
     DOMAIN_CAMERA,
     DOMAIN_SENSOR,
     DOMAIN_BUTTON,
+    DOMAIN_NUMBER,
 ]
 SIGNALS = {
     DOMAIN_BINARY_SENSOR: BI_UPDATE_SIGNAL_BINARY_SENSOR,
@@ -312,6 +374,7 @@ SIGNALS = {
     DOMAIN_SWITCH: BI_UPDATE_SIGNAL_SWITCH,
     DOMAIN_SENSOR: BI_UPDATE_SIGNAL_SENSOR,
     DOMAIN_BUTTON: BI_UPDATE_SIGNAL_BUTTON,
+    DOMAIN_NUMBER: BI_UPDATE_SIGNAL_NUMBER,
 }
 
 ENTITY_ID = "id"
