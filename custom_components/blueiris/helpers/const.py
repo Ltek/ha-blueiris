@@ -462,7 +462,38 @@ CONF_CAMERA_CONTROLS = {
 }
 # None by default (opt-in); All is then stored explicitly as null
 CAMERA_CONTROLS_DEFAULT_OFF = {CAMERA_CONTROL_MOTION, CAMERA_CONTROL_REBOOT}
-DEFAULT_OFF_OPTION_KEYS = {CONF_CAMERA_CONTROLS[k] for k in CAMERA_CONTROLS_DEFAULT_OFF}
+
+# Camera sensors (from camlist, no admin needed): key -> options key
+OPTION_SECTION_CAMERA_SENSORS = "camera_sensors"
+CAMERA_SENSOR_BITRATE = "bitrate"
+CAMERA_SENSOR_LAST_ALERT = "last_alert"
+CAMERA_SENSOR_RECORDING = "recording"
+CAMERA_SENSOR_TRIGGERED = "triggered"
+CAMERA_SENSOR_ALERTING = "alerting"
+CONF_CAMERA_SENSORS = {
+    CAMERA_SENSOR_BITRATE: "allowed_camera_bitrate",
+    CAMERA_SENSOR_LAST_ALERT: "allowed_camera_last_alert",
+    CAMERA_SENSOR_RECORDING: "allowed_camera_recording",
+    CAMERA_SENSOR_TRIGGERED: "allowed_camera_triggered",
+    CAMERA_SENSOR_ALERTING: "allowed_camera_alerting",
+}
+CAMERA_SENSORS_DEFAULT_OFF = {
+    CAMERA_SENSOR_RECORDING,
+    CAMERA_SENSOR_TRIGGERED,
+    CAMERA_SENSOR_ALERTING,
+}
+# binary sensor: camlist field, name suffix, icon
+CAMERA_STATE_SENSORS = {
+    CAMERA_SENSOR_RECORDING: ("isRecording", "Recording", "mdi:record-rec"),
+    CAMERA_SENSOR_TRIGGERED: ("isTriggered", "Triggered", "mdi:motion-sensor"),
+    CAMERA_SENSOR_ALERTING: ("isAlerting", "Alerting", "mdi:bell-ring-outline"),
+}
+CAMERA_SENSOR = "CameraSensor"
+
+DEFAULT_OFF_OPTION_KEYS = {
+    *(CONF_CAMERA_CONTROLS[k] for k in CAMERA_CONTROLS_DEFAULT_OFF),
+    *(CONF_CAMERA_SENSORS[k] for k in CAMERA_SENSORS_DEFAULT_OFF),
+}
 
 CAMERA_CONTROL = "CameraControl"
 CAMERA_CONTROL_KEY = "camera_control"
@@ -513,10 +544,12 @@ CATEGORY_SECTIONS = {
     CONF_ALLOWED_PROFILE: OPTION_SECTION_SWITCHES,
     CONF_ALLOWED_SCHEDULE: OPTION_SECTION_SWITCHES,
     **{key: OPTION_SECTION_CAMERA_CONTROLS for key in CONF_CAMERA_CONTROLS.values()},
+    **{key: OPTION_SECTION_CAMERA_SENSORS for key in CONF_CAMERA_SENSORS.values()},
 }
 SECTION_COLLAPSED = {
     OPTION_SECTION_CAMERAS: False,
     OPTION_SECTION_CAMERA_CONTROLS: True,
+    OPTION_SECTION_CAMERA_SENSORS: True,
     OPTION_SECTION_MQTT_SENSORS: True,
     OPTION_SECTION_SWITCHES: True,
 }

@@ -79,6 +79,23 @@
               "allowed_camera_reboot": "Off by default. Reboots the camera itself; only works on cameras that support reboot through Blue Iris."
             }
           },
+          "camera_sensors": {
+            "name": "Camera sensors",
+            "description": "Per camera, from Blue Iris' camera list on every poll.",
+            "data": {
+              "allowed_camera_bitrate": "Bitrate (main and sub stream)",
+              "allowed_camera_last_alert": "Last alert",
+              "allowed_camera_recording": "Recording",
+              "allowed_camera_triggered": "Triggered",
+              "allowed_camera_alerting": "Alerting"
+            },
+            "data_description": {
+              "allowed_camera_bitrate": "kbit/s, with FPS and resolution as attributes. A sub-stream sensor is added for cameras that have one.",
+              "allowed_camera_recording": "Off by default. From the 30 s poll, so short events can be missed; use the MQTT Motion sensors for motion.",
+              "allowed_camera_triggered": "Off by default. From the 30 s poll; short triggers can be missed.",
+              "allowed_camera_alerting": "Off by default. From the 30 s poll; short alerts can be missed."
+            }
+          },
           "mqtt_sensors": {
             "name": "MQTT sensors",
             "description": "Shown when the MQTT integration is set up.",
@@ -242,6 +259,36 @@
           },
           "allowed_camera_reboot": {
             "name": "Reboot button",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_camera_bitrate": {
+            "name": "Bitrate (main and sub stream)",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_camera_last_alert": {
+            "name": "Last alert",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_camera_recording": {
+            "name": "Recording",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_camera_triggered": {
+            "name": "Triggered",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_camera_alerting": {
+            "name": "Alerting",
             "data": {
               "items": "Items"
             }

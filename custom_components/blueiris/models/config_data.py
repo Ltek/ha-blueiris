@@ -26,6 +26,7 @@ class ConfigData:
     auto_reset_defaults: dict
     server_sensors: dict
     camera_controls: dict
+    camera_sensors: dict
 
     def __init__(self):
         self.name = DEFAULT_NAME
@@ -44,6 +45,10 @@ class ConfigData:
         self.camera_controls = {
             key: [] if key in CAMERA_CONTROLS_DEFAULT_OFF else None
             for key in CONF_CAMERA_CONTROLS
+        }
+        self.camera_sensors = {
+            key: [] if key in CAMERA_SENSORS_DEFAULT_OFF else None
+            for key in CONF_CAMERA_SENSORS
         }
 
         self.allowed_camera = []
