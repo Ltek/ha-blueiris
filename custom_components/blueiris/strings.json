@@ -22,28 +22,94 @@
   "options": {
     "step": {
       "blue_iris_additional_settings": {
-        "title": "Options for BlueIris.",
-        "description": "Set up username and password to control profiles / exclude system camera.",
+        "title": "Blue Iris options",
+        "description": "Pick which components to create. **All** includes cameras added to Blue Iris later, **None** turns the section off, **Choose…** opens a checkbox list on the next page.",
         "data": {
-          "host": "Host",
-          "port": "Port",
-          "ssl": "Is SSL",
-          "username": "Username",
-          "password": "Password",
-          "clear-credentials": "Clear credentials",
-          "log_level": "Log level",
-          "generate-config-files": "Generate configuration files",
           "allowed_camera": "Camera components",
-          "allowed_profile": "Profile switches",
-          "allowed_schedule": "Schedule switches",
           "allowed_motion_sensor": "Motion sensors",
-          "allowed_audio_sensor": "Audio sensors",
           "allowed_connectivity_sensor": "Connectivity sensors",
-          "allowed_dio_sensor": "DIO sensors",
+          "allowed_audio_sensor": "Audio sensors",
+          "allowed_dio_sensor": "DIO sensors (digital input triggers)",
           "allowed_external_sensor": "External sensors",
-          "reset-components-settings": "Reset components settings to default",
-          "stream-type": "Stream type",
-          "support_stream": "Support stream component (Requires restart)"
+          "allowed_profile": "Profile switches",
+          "allowed_schedule": "Schedule switches"
+        },
+        "sections": {
+          "connection": {
+            "name": "Connection",
+            "description": "Server and login. A username and password with admin rights are needed for profiles, schedules and Reset Camera.",
+            "data": {
+              "host": "Host",
+              "port": "Port",
+              "ssl": "Is SSL",
+              "username": "Username",
+              "password": "Password",
+              "clear-credentials": "Clear credentials"
+            }
+          },
+          "general": {
+            "name": "Streams and logging",
+            "data": {
+              "stream-type": "Stream type",
+              "support_stream": "Support stream component (Requires restart)",
+              "log_level": "Log level",
+              "generate-config-files": "Generate configuration files"
+            }
+          }
+        }
+      },
+      "select_items": {
+        "title": "Choose components",
+        "description": "Tick the items to create in each section.",
+        "sections": {
+          "allowed_camera": {
+            "name": "Camera components",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_motion_sensor": {
+            "name": "Motion sensors",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_connectivity_sensor": {
+            "name": "Connectivity sensors",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_audio_sensor": {
+            "name": "Audio sensors",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_dio_sensor": {
+            "name": "DIO sensors (digital input triggers)",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_external_sensor": {
+            "name": "External sensors",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_profile": {
+            "name": "Profile switches",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_schedule": {
+            "name": "Schedule switches",
+            "data": {
+              "items": "Items"
+            }
+          }
         }
       }
     },

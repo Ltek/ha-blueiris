@@ -313,8 +313,14 @@ ENTITY_STATUS_CANCELLED = f"{ENTITY_STATUS}-cancelled"
 
 CONF_CLEAR_CREDENTIALS = "clear-credentials"
 CONF_GENERATE_CONFIG_FILES = "generate-config-files"
-CONF_RESET_COMPONENTS_SETTINGS = "reset-components-settings"
 CONF_ACTIONS = "actions"
+
+OPTION_MODE_ALL = "all"
+OPTION_MODE_NONE = "none"
+OPTION_MODE_CUSTOM = "custom"
+OPTION_ITEMS = "items"
+OPTION_SECTION_CONNECTION = "connection"
+OPTION_SECTION_GENERAL = "general"
 
 DOMAIN_LOAD = "load"
 DOMAIN_UNLOAD = "unload"

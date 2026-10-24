@@ -7,7 +7,13 @@ from voluptuous import Marker
 from homeassistant.components.mqtt import DATA_MQTT
 from homeassistant.components.stream.const import DOMAIN as DOMAIN_STREAM
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers import config_validation as cv
+from homeassistant.data_entry_flow import section
+from homeassistant.helpers.selector import (
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
 from .. import get_ha
 from ..api.blue_iris_api import BlueIrisApi
@@ -125,13 +131,19 @@ class ConfigFlowManager:
 
         return data_schema
 
-    def get_default_options(self) -> vol.Schema:
+    def get_option_categories(self) -> list[dict]:
+        """Selectable component categories that apply to this server.
+
+        checked is the saved option: None means all (also cameras added to
+        Blue Iris later), a list means only those items.
+        """
         config_data = self.config_data
         ha = self._get_ha(self._config_entry.entry_id)
 
         camera_list: list[CameraData] = ha.api.camera_list
 
         is_admin = ha.api.data.get("admin", False)
+        has_mqtt = DATA_MQTT in self._hass.data
 
         profiles_list = ha.api.data.get("profiles", [])
         schedules_list = ha.api.data.get("schedules", [])
@@ -144,96 +156,208 @@ class ConfigFlowManager:
         supported_profile = self._get_profile_options(profiles_list)
         supported_schedule = self._get_schedule_options(schedules_list)
 
-        drop_down_fields = [
-            {
-                "checked": config_data.allowed_camera,
-                "items": supported_camera,
-                "name": CONF_ALLOWED_CAMERA,
-                "enabled": True,
-            },
-            {
-                "checked": config_data.allowed_connectivity_sensor,
-                "items": supported_camera_sensor,
-                "name": CONF_ALLOWED_CONNECTIVITY_SENSOR,
-                "enabled": DATA_MQTT in self._hass.data,
-            },
-            {
-                "checked": config_data.allowed_audio_sensor,
-                "items": supported_audio_sensor,
-                "name": CONF_ALLOWED_AUDIO_SENSOR,
-                "enabled": DATA_MQTT in self._hass.data,
-            },
-            {
-                "checked": config_data.allowed_motion_sensor,
-                "items": supported_camera_sensor,
-                "name": CONF_ALLOWED_MOTION_SENSOR,
-                "enabled": DATA_MQTT in self._hass.data,
-            },
-            {
-                "checked": config_data.allowed_dio_sensor,
-                "items": supported_camera_sensor,
-                "name": CONF_ALLOWED_DIO_SENSOR,
-                "enabled": DATA_MQTT in self._hass.data,
-            },
-            {
-                "checked": config_data.allowed_external_sensor,
-                "items": supported_camera_sensor,
-                "name": CONF_ALLOWED_EXTERNAL_SENSOR,
-                "enabled": DATA_MQTT in self._hass.data,
-            },
-            {
-                "checked": config_data.allowed_profile,
-                "items": supported_profile,
-                "name": CONF_ALLOWED_PROFILE,
-                "enabled": is_admin,
-            },
-            {
-                "checked": config_data.allowed_schedule,
-                "items": supported_schedule,
-                "name": CONF_ALLOWED_SCHEDULE,
-                "enabled": is_admin,
-            },
+        categories = [
+            (CONF_ALLOWED_CAMERA, config_data.allowed_camera, supported_camera, True),
+            (
+                CONF_ALLOWED_MOTION_SENSOR,
+                config_data.allowed_motion_sensor,
+                supported_camera_sensor,
+                has_mqtt,
+            ),
+            (
+                CONF_ALLOWED_CONNECTIVITY_SENSOR,
+                config_data.allowed_connectivity_sensor,
+                supported_camera_sensor,
+                has_mqtt,
+            ),
+            (
+                CONF_ALLOWED_AUDIO_SENSOR,
+                config_data.allowed_audio_sensor,
+                supported_audio_sensor,
+                has_mqtt,
+            ),
+            (
+                CONF_ALLOWED_DIO_SENSOR,
+                config_data.allowed_dio_sensor,
+                supported_camera_sensor,
+                has_mqtt,
+            ),
+            (
+                CONF_ALLOWED_EXTERNAL_SENSOR,
+                config_data.allowed_external_sensor,
+                supported_camera_sensor,
+                has_mqtt,
+            ),
+            (CONF_ALLOWED_PROFILE, config_data.allowed_profile, supported_profile, is_admin),
+            (
+                CONF_ALLOWED_SCHEDULE,
+                config_data.allowed_schedule,
+                supported_schedule,
+                is_admin,
+            ),
         ]
 
-        fields = self._get_default_fields(CONFIG_FLOW_OPTIONS)
+        result = []
+        for name, checked, items, enabled in categories:
+            if checked is not None:
+                checked = [i for i in checked if i in items]
 
-        fields[vol.Optional(CONF_CLEAR_CREDENTIALS, default=False)] = bool
+            result.append(
+                {
+                    "name": name,
+                    "items": items,
+                    "checked": checked,
+                    "enabled": enabled,
+                }
+            )
 
-        fields[vol.Optional(CONF_GENERATE_CONFIG_FILES, default=False)] = bool
+        return result
 
-        fields[
-            vol.Optional(CONF_STREAM_TYPE, default=config_data.stream_type)
-        ] = vol.In(STREAM_VIDEO.keys())
+    @staticmethod
+    def _category_mode(category: dict) -> str:
+        checked = category["checked"]
+
+        if checked is None:
+            return OPTION_MODE_ALL
+
+        if len(checked) == 0:
+            return OPTION_MODE_NONE
+
+        return OPTION_MODE_CUSTOM
+
+    def get_options_main_schema(self, categories: list[dict]) -> vol.Schema:
+        """Page 1: All / None / Choose per category, plus the other settings."""
+        config_data = self.config_data
+
+        fields = {}
+
+        for category in categories:
+            if not category["enabled"]:
+                continue
+
+            total = len(category["items"])
+            checked = category["checked"]
+            selected = total if checked is None else len(checked)
+
+            mode_options = [
+                SelectOptionDict(value=OPTION_MODE_ALL, label=f"All ({total})"),
+                SelectOptionDict(value=OPTION_MODE_NONE, label="None (0)"),
+                SelectOptionDict(
+                    value=OPTION_MODE_CUSTOM,
+                    label=f"Choose… ({selected} of {total} selected)",
+                ),
+            ]
+
+            fields[
+                vol.Required(category["name"], default=self._category_mode(category))
+            ] = SelectSelector(
+                SelectSelectorConfig(
+                    options=mode_options, mode=SelectSelectorMode.DROPDOWN
+                )
+            )
+
+        connection_fields = self._get_default_fields(CONFIG_FLOW_OPTIONS)
+        connection_fields[vol.Optional(CONF_CLEAR_CREDENTIALS, default=False)] = bool
+
+        fields[vol.Required(OPTION_SECTION_CONNECTION)] = section(
+            vol.Schema(connection_fields), {"collapsed": True}
+        )
+
+        general_fields = {
+            vol.Optional(CONF_STREAM_TYPE, default=config_data.stream_type): vol.In(
+                list(STREAM_VIDEO.keys())
+            ),
+        }
 
         if DOMAIN_STREAM in self._hass.data:
-            fields[
+            general_fields[
                 vol.Optional(CONF_SUPPORT_STREAM, default=config_data.support_stream)
             ] = bool
 
-        fields[vol.Optional(CONF_LOG_LEVEL, default=config_data.log_level)] = vol.In(
-            LOG_LEVELS
+        general_fields[
+            vol.Optional(CONF_LOG_LEVEL, default=config_data.log_level)
+        ] = vol.In(LOG_LEVELS)
+        general_fields[vol.Optional(CONF_GENERATE_CONFIG_FILES, default=False)] = bool
+
+        fields[vol.Required(OPTION_SECTION_GENERAL)] = section(
+            vol.Schema(general_fields), {"collapsed": True}
         )
 
-        fields[vol.Optional(CONF_RESET_COMPONENTS_SETTINGS, default=False)] = bool
+        return vol.Schema(fields)
 
-        for drop_down in drop_down_fields:
-            enabled = drop_down.get("enabled", False)
+    @staticmethod
+    def get_options_items_schema(
+        categories: list[dict], custom_names: list[str]
+    ) -> vol.Schema:
+        """Page 2: a checkbox list for each category set to Choose."""
+        fields = {}
 
-            if enabled:
-                name = drop_down.get("name", False)
-                items = drop_down.get("items", [])
-                checked = drop_down.get("checked")
+        for category in categories:
+            name = category["name"]
 
-                if checked is None:
-                    checked = list(items.keys())
-                else:
-                    checked = {i for i in checked if i in items}
+            if name not in custom_names:
+                continue
 
-                fields[vol.Optional(name, default=checked)] = cv.multi_select(items)
+            items = category["items"]
+            checked = category["checked"]
+            default = list(items.keys()) if checked is None else checked
 
-        data_schema = vol.Schema(fields)
+            options = [
+                SelectOptionDict(value=key, label=label) for key, label in items.items()
+            ]
 
-        return data_schema
+            fields[vol.Required(name)] = section(
+                vol.Schema(
+                    {
+                        vol.Optional(OPTION_ITEMS, default=default): SelectSelector(
+                            SelectSelectorConfig(
+                                options=options,
+                                multiple=True,
+                                mode=SelectSelectorMode.LIST,
+                            )
+                        )
+                    }
+                ),
+                {"collapsed": False},
+            )
+
+        return vol.Schema(fields)
+
+    @staticmethod
+    def build_options_input(
+        categories: list[dict], main_input: dict, items_input: Optional[dict]
+    ) -> dict:
+        """Merge both pages into the flat options update_options expects.
+
+        All -> option left out (no limit), None -> [], Choose -> the ticked
+        items. Categories hidden on page 1 (no MQTT / not admin) keep their
+        saved value.
+        """
+        result = {}
+
+        for key, value in main_input.items():
+            if key in (OPTION_SECTION_CONNECTION, OPTION_SECTION_GENERAL):
+                result.update(value)
+
+        items_input = items_input or {}
+
+        for category in categories:
+            name = category["name"]
+
+            if not category["enabled"]:
+                if category["checked"] is not None:
+                    result[name] = category["checked"]
+                continue
+
+            mode = main_input.get(name, OPTION_MODE_ALL)
+
+            if mode == OPTION_MODE_NONE:
+                result[name] = []
+
+            elif mode == OPTION_MODE_CUSTOM:
+                result[name] = list(items_input.get(name, {}).get(OPTION_ITEMS, []))
+
+        return result
 
     async def _update_entry(self):
         try:
@@ -364,37 +488,6 @@ class ConfigFlowManager:
         return ha
 
     def _move_option_to_data(self, options):
-        if CONF_RESET_COMPONENTS_SETTINGS in options:
-            if options.get(CONF_RESET_COMPONENTS_SETTINGS, False):
-                if CONF_ALLOWED_CAMERA in options:
-                    del options[CONF_ALLOWED_CAMERA]
-
-                if CONF_ALLOWED_AUDIO_SENSOR in options:
-                    del options[CONF_ALLOWED_AUDIO_SENSOR]
-
-                if CONF_ALLOWED_MOTION_SENSOR in options:
-                    del options[CONF_ALLOWED_MOTION_SENSOR]
-
-                if CONF_ALLOWED_CONNECTIVITY_SENSOR in options:
-                    del options[CONF_ALLOWED_CONNECTIVITY_SENSOR]
-
-                if CONF_ALLOWED_DIO_SENSOR in options:
-                    del options[CONF_ALLOWED_DIO_SENSOR]
-
-                if CONF_ALLOWED_EXTERNAL_SENSOR in options:
-                    del options[CONF_ALLOWED_EXTERNAL_SENSOR]
-
-                if CONF_ALLOWED_PROFILE in options:
-                    del options[CONF_ALLOWED_PROFILE]
-
-                if CONF_ALLOWED_SCHEDULE in options:
-                    del options[CONF_ALLOWED_SCHEDULE]
-
-                if CONF_STREAM_TYPE in options:
-                    del options[CONF_STREAM_TYPE]
-
-            del options[CONF_RESET_COMPONENTS_SETTINGS]
-
         for conf in CONF_ARR:
             if conf in options:
                 self._data[conf] = options[conf]

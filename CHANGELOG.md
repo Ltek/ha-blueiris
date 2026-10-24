@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.25
+
+- Options reworked into two pages: each component section (cameras, Motion / Connectivity / Audio / DIO / External sensors, profiles, schedules) has All / None / Choose…, with the item count and current selection in the label. All includes cameras added to Blue Iris later; None turns the section off. Sections set to Choose… get a checkbox list on the second page
+- Connection and stream / log settings moved into collapsed groups; "Reset components settings to default" removed (use All)
+- Sections hidden because MQTT is not set up or the user is not admin now keep their saved setting
+- Fix: an empty profile selection also hid the schedule switches (and the other way round)
+
 ## 1.0.24
 
 - Add `blueiris.reset_camera` service: resets (reconnects) a camera through the JSON API (`camconfig` with `reset`). Requires an admin user; raises an error with Blue Iris' reason on failure
