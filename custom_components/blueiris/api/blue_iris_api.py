@@ -55,6 +55,9 @@ class BlueIrisApi:
             self.config_manager = config_manager
             self.session_id = None
             self.session = None
+            # camera id -> motion detection on (current profile), read every
+            # few minutes because camlist does not include it
+            self.motion_states = {}
 
             # Connection health, refreshed by every async_update
             self.last_post_reachable = None
@@ -262,43 +265,54 @@ class BlueIrisApi:
             "camera": camera_short_name,
         })
 
-    async def reset_camera(self, camera_short_name):
-        """Reset (reconnect) a camera via camconfig, same as BI's "Reset" action.
+    async def async_camera_command(
+        self,
+        camera_short_name,
+        action: str,
+        values: dict,
+        cmd: str = "camconfig",
+        require_admin: bool = True,
+    ) -> dict:
+        """Send one camera command, logging in again and retrying once.
 
-        Requires a Blue Iris user with admin rights. Raises BlueIrisCommandError
-        with the reason when the login or the command fails, so a service call
-        surfaces the problem instead of failing silently.
+        Raises BlueIrisCommandError with Blue Iris' reason when the login or
+        the command fails, so a service call or button press surfaces the
+        problem instead of failing silently. Returns the response data.
         """
-        _LOGGER.debug(f"Resetting camera {camera_short_name}")
+        _LOGGER.debug(f"Camera {camera_short_name}: {action} {values}")
 
         if not self.is_logged_in and not await self.login():
             raise BlueIrisCommandError(
-                f"Cannot reset camera {camera_short_name}: login to Blue Iris failed"
+                f"Cannot {action} camera {camera_short_name}: login to Blue Iris failed"
             )
 
-        if not self.data.get("admin", False):
+        if require_admin and not self.data.get("admin", False):
             raise BlueIrisCommandError(
-                f"Cannot reset camera {camera_short_name}: "
+                f"Cannot {action} camera {camera_short_name}: "
                 f"Blue Iris user '{self.config_data.username}' is not an admin"
             )
 
         result = None
         for attempt in range(2):
             result = await self.async_post({
-                "cmd": "camconfig",
+                "cmd": cmd,
                 "session": self.session_id,
                 "camera": camera_short_name,
-                "reset": True,
+                **values,
             })
 
             if result is not None and result.get("result") == "success":
-                _LOGGER.debug(f"Camera {camera_short_name} reset, response: {result}")
-                return
+                _LOGGER.debug(
+                    f"Camera {camera_short_name}: {action} done, response: {result}"
+                )
+                data = result.get("data")
+                return data if isinstance(data, dict) else {}
 
             # The session may have expired; log in again and retry once
             if attempt == 0:
                 _LOGGER.debug(
-                    f"Reset of {camera_short_name} failed ({result}), retrying after login"
+                    f"{action} of {camera_short_name} failed ({result}), "
+                    "retrying after login"
                 )
                 await self.login()
 
@@ -307,8 +321,74 @@ class BlueIrisApi:
             reason = (result.get("data") or {}).get("reason")
 
         raise BlueIrisCommandError(
-            f"Blue Iris rejected reset of camera {camera_short_name}: "
+            f"Blue Iris rejected {action} of camera {camera_short_name}: "
             f"{reason or result or 'no response'}"
+        )
+
+    async def reset_camera(self, camera_short_name):
+        """Reset (reconnect) a camera, same as Blue Iris' Reset action."""
+        await self.async_camera_command(camera_short_name, "reset", {"reset": True})
+
+    async def reboot_camera(self, camera_short_name):
+        """Send Blue Iris' PTZ/control reboot command to the camera itself."""
+        await self.async_camera_command(camera_short_name, "reboot", {"reboot": True})
+
+    async def set_camera_value(self, camera_short_name, key: str, value):
+        """camconfig setting such as enable, manrec, motion or pause."""
+        await self.async_camera_command(camera_short_name, f"set {key}", {key: value})
+
+    async def load_motion_state(self, camera_short_name) -> Optional[bool]:
+        """Motion detection for the current profile (not part of camlist)."""
+        try:
+            data = await self.async_camera_command(camera_short_name, "read", {})
+        except BlueIrisCommandError as ex:
+            _LOGGER.debug(str(ex))
+            return self.motion_states.get(camera_short_name)
+
+        motion = data.get("motion")
+        if isinstance(motion, bool):
+            self.motion_states[camera_short_name] = motion
+
+        return self.motion_states.get(camera_short_name)
+
+    async def snapshot_to_database(self, camera_short_name):
+        """Save a snapshot into Blue Iris' clips database.
+
+        The JSON form is not in the manual, so fall back to the documented
+        /admin?camera=x&snapshot when Blue Iris rejects it.
+        """
+        try:
+            await self.async_camera_command(
+                camera_short_name, "snapshot", {}, cmd="snapshot", require_admin=False
+            )
+            return
+        except BlueIrisCommandError as json_error:
+            _LOGGER.debug(f"JSON snapshot failed ({json_error}), trying /admin")
+            first_error = json_error
+
+        url = f"{self.base_url}/admin"
+        params = {"camera": camera_short_name, "snapshot": "", "session": self.session_id}
+
+        try:
+            await self.ensure_session()
+            async with self.session.get(url, params=params, ssl=False) as response:
+                body = (await response.text())[:200]
+                _LOGGER.debug(f"/admin snapshot: HTTP {response.status}, {body!r}")
+
+                rejected = any(
+                    word in body.lower()
+                    for word in ("authorization required", "denied", "error", "invalid")
+                )
+                if response.status == 200 and not rejected:
+                    return
+
+                reason = f"HTTP {response.status} {body.strip()}"
+        except aiohttp.ClientError as ex:
+            reason = str(ex)
+
+        raise BlueIrisCommandError(
+            f"Blue Iris rejected snapshot of camera {camera_short_name}: "
+            f"JSON: {first_error}; /admin: {reason}"
         )
 
     async def move_to_preset(self, camera_short_name, preset):

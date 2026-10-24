@@ -3,7 +3,7 @@ Support for Blue Iris.
 For more details about this platform, please refer to the documentation at
 https://home-assistant.io/components/blueiris/
 """
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import sys
 from typing import Optional
@@ -46,6 +46,7 @@ class BlueIrisHomeAssistant:
         self._device_manager = None
         self._storage_manager = None
         self._auto_reset_manager: Optional[AutoResetManager] = None
+        self._last_motion_refresh: Optional[datetime] = None
         self._config_generator: Optional[AdvancedConfigurationGenerator] = None
 
         self._config_manager = ConfigManager(password_manager)
@@ -202,6 +203,7 @@ class BlueIrisHomeAssistant:
             self._is_updating = True
 
             await self._api.async_update()
+            await self._async_refresh_motion_states()
 
             self.entity_manager.update_camera_problems()
             await self._auto_reset_manager.async_evaluate()
@@ -216,6 +218,24 @@ class BlueIrisHomeAssistant:
             _LOGGER.error(f"Failed to async_update, Error: {ex}, Line: {line_number}")
 
         self._is_updating = False
+
+    async def _async_refresh_motion_states(self):
+        """Read motion detection (not in camlist) every few minutes."""
+        allowed = self.config_data.camera_controls[CAMERA_CONTROL_MOTION]
+
+        if allowed == [] or not self._api.data.get("admin", False):
+            return
+
+        now = datetime.now(timezone.utc)
+        last = self._last_motion_refresh
+        if last is not None and now - last < MOTION_REFRESH_INTERVAL:
+            return
+
+        self._last_motion_refresh = now
+
+        for camera in self._api.camera_list:
+            if camera.is_physical and (allowed is None or camera.id in allowed):
+                await self._api.load_motion_state(camera.id)
 
     async def delete_entity(self, domain, name):
         try:

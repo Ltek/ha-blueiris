@@ -6,6 +6,7 @@ https://home-assistant.io/components/button.blueiris/
 import logging
 
 from homeassistant.components.button import ButtonEntity
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
@@ -35,11 +36,38 @@ async def async_unload_entry(_hass, config_entry):
 
 
 def get_button(hass: HomeAssistant, host: str, entity: EntityData):
-    button = BlueIrisResetButton()
+    if entity.type == CAMERA_CONTROL:
+        button = BlueIrisCameraControlButton()
+    else:
+        button = BlueIrisResetButton()
+
     button.initialize(hass, host, entity, CURRENT_DOMAIN)
     button._attr_device_class = entity.details.get(ENTITY_BUTTON_DEVICE_CLASS)
 
+    if entity.details.get(ENTITY_CONFIG_CATEGORY):
+        button._attr_entity_category = EntityCategory.CONFIG
+
     return button
+
+
+class BlueIrisCameraControlButton(ButtonEntity, BlueIrisEntity):
+    """Snapshot to Database or Reboot."""
+
+    @property
+    def icon(self):
+        return self.entity.icon
+
+    async def async_press(self) -> None:
+        key = self.entity.details[CAMERA_CONTROL_KEY]
+
+        try:
+            if key == CAMERA_CONTROL_SNAPSHOT:
+                await self.api.snapshot_to_database(self.entity.id)
+            else:
+                await self.api.reboot_camera(self.entity.id)
+        except BlueIrisCommandError as ex:
+            _LOGGER.error(str(ex))
+            raise HomeAssistantError(str(ex)) from ex
 
 
 class BlueIrisResetButton(ButtonEntity, BlueIrisEntity):

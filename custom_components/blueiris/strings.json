@@ -62,6 +62,23 @@
               "allowed_problem_sensor": "Cameras on battery or solar power, or that only stream when motion is detected, may need Problem Detection turned off: use the Problem Detection switch on that camera's device page (Configuration). It stops the Problem sensor and auto reset for that camera only, so this section can stay on All. Also turn off that camera's Watchdog in Blue Iris."
             }
           },
+          "camera_controls": {
+            "name": "Camera controls",
+            "description": "Admin user. Per camera, on its device page.",
+            "data": {
+              "allowed_camera_enable": "Enabled switch",
+              "allowed_camera_pause": "Pause",
+              "allowed_camera_manrec": "Manual recording switch",
+              "allowed_camera_snapshot": "Snapshot to database button",
+              "allowed_camera_motion": "Motion detection switch",
+              "allowed_camera_reboot": "Reboot button"
+            },
+            "data_description": {
+              "allowed_camera_snapshot": "Saves a snapshot into Blue Iris' own clips database (timeline, UI3), not a file in Home Assistant.",
+              "allowed_camera_motion": "Off by default. Turns motion detection on or off for the camera's active profile; read from Blue Iris every 5 minutes.",
+              "allowed_camera_reboot": "Off by default. Reboots the camera itself; only works on cameras that support reboot through Blue Iris."
+            }
+          },
           "mqtt_sensors": {
             "name": "MQTT sensors",
             "description": "Shown when the MQTT integration is set up.",
@@ -189,6 +206,42 @@
           },
           "allowed_schedule": {
             "name": "Schedule switches",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_camera_enable": {
+            "name": "Enabled switch",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_camera_pause": {
+            "name": "Pause",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_camera_manrec": {
+            "name": "Manual recording switch",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_camera_snapshot": {
+            "name": "Snapshot to database button",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_camera_motion": {
+            "name": "Motion detection switch",
+            "data": {
+              "items": "Items"
+            }
+          },
+          "allowed_camera_reboot": {
+            "name": "Reboot button",
             "data": {
               "items": "Items"
             }
