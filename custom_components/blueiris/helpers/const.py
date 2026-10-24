@@ -226,6 +226,9 @@ KEY_PROBLEM_DETECTION_OFF = "problem_detection_off"
 AUTO_RESET_KEY_DELAY = "delay"
 AUTO_RESET_KEY_ATTEMPTS = "attempts"
 AUTO_RESET_KEY_INTERVAL = "interval"
+# After the last reset failed: reboot the camera itself once
+AUTO_RESET_KEY_REBOOT = "reboot"
+AUTO_RESET_BOOL_KEYS = (AUTO_RESET_KEY_ENABLED, AUTO_RESET_KEY_REBOOT)
 
 # Built-in defaults; the options flow can change them
 AUTO_RESET_CAMERA_DEFAULTS = {
@@ -233,6 +236,7 @@ AUTO_RESET_CAMERA_DEFAULTS = {
     AUTO_RESET_KEY_DELAY: 30,  # seconds the problem must last first
     AUTO_RESET_KEY_ATTEMPTS: 3,
     AUTO_RESET_KEY_INTERVAL: 90,  # seconds between resets
+    AUTO_RESET_KEY_REBOOT: False,
 }
 
 # Options keys holding the defaults
@@ -241,6 +245,7 @@ CONF_AUTO_RESET_DEFAULTS = {
     AUTO_RESET_KEY_DELAY: "auto_reset_default_delay",
     AUTO_RESET_KEY_ATTEMPTS: "auto_reset_default_attempts",
     AUTO_RESET_KEY_INTERVAL: "auto_reset_default_interval",
+    AUTO_RESET_KEY_REBOOT: "auto_reset_default_reboot",
 }
 # Action, not stored: clear every camera's own values
 CONF_AUTO_RESET_APPLY_DEFAULTS = "auto_reset_apply_defaults"
@@ -268,15 +273,23 @@ AUTO_RESET_STATE_IDLE = "idle"
 AUTO_RESET_STATE_WAITING = "waiting"
 AUTO_RESET_STATE_RESETTING = "resetting"
 AUTO_RESET_STATE_GAVE_UP = "gave_up"
+AUTO_RESET_STATE_REBOOTING = "rebooting"
 
 ATTR_AUTO_RESET_STATE = "auto_reset_state"
 ATTR_AUTO_RESET_ATTEMPTS = "auto_reset_attempts"
 ATTR_AUTO_RESET_LAST = "auto_reset_last"
+ATTR_AUTO_RESET_REBOOTED = "auto_reset_rebooted"
 
 AUTO_RESET_EVENT = f"{DOMAIN}_auto_reset"
 AUTO_RESET_EVENT_RESET = "reset"
 AUTO_RESET_EVENT_RECOVERED = "recovered"
 AUTO_RESET_EVENT_GAVE_UP = "gave_up"
+AUTO_RESET_EVENT_REBOOT = "reboot"
+AUTO_RESET_REBOOT_NAME = "Reboot"
+AUTO_RESET_REBOOT_ICON = "mdi:power-cycle"
+
+# In a camera's Notes (General tab in Blue Iris): turns Problem Detection off
+NOTES_TAG_NO_DETECTION = "#ha:no-detection"
 
 NEGATIVE_SENSOR_STATE = [SENSOR_CONNECTIVITY_NAME]
 CAMERA_SENSORS = {

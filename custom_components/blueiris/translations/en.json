@@ -38,7 +38,11 @@
               "auto_reset_default_enabled": "Auto reset on by default",
               "auto_reset_default_delay": "Delay before the first reset",
               "auto_reset_default_attempts": "Attempts",
-              "auto_reset_default_interval": "Interval between resets"
+              "auto_reset_default_interval": "Interval between resets",
+              "auto_reset_default_reboot": "Reboot the camera after the last reset"
+            },
+            "data_description": {
+              "auto_reset_default_reboot": "Off by default. When the resets didn't help, reboot the camera itself once before giving up. Only works on cameras that support reboot through Blue Iris."
             }
           }
         }
@@ -63,7 +67,7 @@
               "allowed_problem_sensor": "Problem sensors (no signal / offline / stalled)"
             },
             "data_description": {
-              "allowed_problem_sensor": "Cameras on battery or solar power, or that only stream when motion is detected, may need Problem Detection turned off: use the Problem Detection switch on that camera's device page (Configuration). It stops the Problem sensor and auto reset for that camera only, so this section can stay on All. Also turn off that camera's Watchdog in Blue Iris."
+              "allowed_problem_sensor": "Cameras on battery or solar power, or that only stream when motion is detected, may need Problem Detection turned off: use the Problem Detection switch on that camera's device page (Configuration). It stops the Problem sensor and auto reset for that camera only, so this section can stay on All. Also turn off that camera's Watchdog in Blue Iris. You can also put #ha:no-detection in a camera's Notes (General tab in Blue Iris) to do the same from Blue Iris."
             }
           },
           "camera_controls": {
@@ -175,11 +179,13 @@
               "auto_reset_default_delay": "Delay before the first reset",
               "auto_reset_default_attempts": "Attempts",
               "auto_reset_default_interval": "Interval between resets",
-              "auto_reset_apply_defaults": "Set all cameras back to these defaults"
+              "auto_reset_apply_defaults": "Set all cameras back to these defaults",
+              "auto_reset_default_reboot": "Reboot the camera after the last reset"
             },
             "data_description": {
               "auto_reset_apply_defaults": "Clears every camera's own auto reset values. Not saved; runs once when you submit.",
-              "auto_reset_notifications": "One notification per camera with the problem and the outcome of the resets. Same as the server's Auto Reset Notifications switch."
+              "auto_reset_notifications": "One notification per camera with the problem and the outcome of the resets. Same as the server's Auto Reset Notifications switch.",
+              "auto_reset_default_reboot": "Off by default. When the resets didn't help, reboot the camera itself once before giving up. Only works on cameras that support reboot through Blue Iris."
             }
           }
         }

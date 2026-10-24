@@ -603,7 +603,7 @@ class EntityManager:
             seen.add(camera.id)
             problem = (
                 get_camera_problem(camera)
-                if self._problem_detection(camera.id)
+                if self.problem_detection_enabled(camera.id)
                 else None
             )
 
@@ -624,7 +624,17 @@ class EntityManager:
                 self.camera_problems.pop(camera_id, None)
                 self.problem_since.pop(camera_id, None)
 
-    def _problem_detection(self, camera_id: str) -> bool:
+    def detection_off_by_notes(self, camera_id: str) -> bool:
+        """The camera's Blue Iris Notes contain #ha:no-detection."""
+        camera = next((c for c in self.api.camera_list if c.id == camera_id), None)
+        notes = "" if camera is None else camera.data.get("notes") or ""
+
+        return NOTES_TAG_NO_DETECTION in str(notes).lower()
+
+    def problem_detection_enabled(self, camera_id: str) -> bool:
+        if self.detection_off_by_notes(camera_id):
+            return False
+
         auto_reset = self.ha.auto_reset_manager
         return auto_reset is None or auto_reset.problem_detection(camera_id)
 
@@ -646,7 +656,7 @@ class EntityManager:
         attributes = {
             ATTR_FRIENDLY_NAME: entity_name,
             "camera_id": camera.id,
-            ATTR_PROBLEM_DETECTION: self._problem_detection(camera.id),
+            ATTR_PROBLEM_DETECTION: self.problem_detection_enabled(camera.id),
             "reason": problem,
             "since": None if since is None else since.isoformat(),
             "fps": data.get("FPS"),
@@ -693,10 +703,12 @@ class EntityManager:
                 camera.id,
                 device_name,
                 PROBLEM_DETECTION_SWITCH,
-                self._problem_detection(camera.id),
+                self.problem_detection_enabled(camera.id),
                 PROBLEM_DETECTION_ICON,
                 {},
             )
+            if self.detection_off_by_notes(camera.id):
+                switch.attributes["set_by"] = f"Blue Iris notes ({NOTES_TAG_NO_DETECTION})"
             self.set_entity(DOMAIN_SWITCH, name, switch)
         except Exception as ex:
             self.log_exception(ex, f"Failed to generate problem sensor for {camera}")
@@ -1090,6 +1102,18 @@ class EntityManager:
                 {AUTO_RESET_SETTING: AUTO_RESET_KEY_ENABLED},
             )
             self.set_entity(DOMAIN_SWITCH, switch.name, switch)
+
+            reboot = self._config_entity(
+                DOMAIN_SWITCH,
+                f"{base} {AUTO_RESET_REBOOT_NAME}",
+                camera.id,
+                device_name,
+                AUTO_RESET_CAMERA_SWITCH,
+                settings[AUTO_RESET_KEY_REBOOT],
+                AUTO_RESET_REBOOT_ICON,
+                {AUTO_RESET_SETTING: AUTO_RESET_KEY_REBOOT},
+            )
+            self.set_entity(DOMAIN_SWITCH, reboot.name, reboot)
 
             for key, label, unit, icon in AUTO_RESET_NUMBERS:
                 minimum, maximum, step = AUTO_RESET_LIMITS[key]

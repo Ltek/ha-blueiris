@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current build: **v2026.10.24.35** · full history in [CHANGELOG.md](CHANGELOG.md)
+Current build: **v2026.10.24.36** · full history in [CHANGELOG.md](CHANGELOG.md)
 
 ## Features
 
@@ -219,6 +219,8 @@ A camera that keeps sending the same frame at a normal frame rate cannot be dete
 
 **Problem Detection switch** (`switch.<camera>_problem_detection`, Configuration section of the camera's device, on by default). Turn it off for cameras on battery or solar power, or that only stream when motion is detected: they look "down" most of the time by design, and reconnect attempts can wake them and drain the battery. While it is off, the camera's Problem sensor stays `off` with `problem_detection: false`, it is left out of the Alerts sensor, and auto reset never touches it. Takes effect at once, is kept across restarts and is not changed by *Set all cameras back to these defaults*. Also turn off that camera's Watchdog in Blue Iris.
 
+The same can be set from Blue Iris: put `#ha:no-detection` anywhere in the camera's **Notes** (camera settings, General tab). It overrides the switch, which then shows off with a `set_by` attribute and can't be turned on until the tag is removed. Takes effect on the next poll.
+
 ###### Button - Reset - Per camera (admin user)
 
 Resets (reconnects) the camera, the same as the Reset Camera service. Created for cameras that have a camera entity.
@@ -235,6 +237,7 @@ Resets a camera automatically when its Problem sensor stays on.
 | Delay before the first reset | 30 s | 30 - 3600 s |
 | Attempts               | 3        | 1 - 10      |
 | Interval between resets | 90 s    | 30 - 900 s  |
+| Reboot the camera after the last reset | Off | On / Off |
 
 *Set all cameras back to these defaults* in the same section clears every camera's own values (it runs once and is not saved).
 
@@ -248,6 +251,7 @@ Problems are seen on the 30 s poll, so the first reset comes 30 - 60 s after a c
 | `number.<camera>_auto_reset_delay`    | default | 30 - 3600 s   | How long the problem must last first       |
 | `number.<camera>_auto_reset_attempts` | default | 1 - 10        | Resets before giving up                    |
 | `number.<camera>_auto_reset_interval` | default | 30 - 900 s    | Wait after each reset before the next one  |
+| `switch.<camera>_auto_reset_reboot`   | default | -             | Reboot the camera itself once after the last reset, before giving up |
 
 On the server device:
 
@@ -260,13 +264,13 @@ How it works, on every successful poll:
 
 1. Problem for at least *Delay* -> reset; then up to *Attempts* resets, *Interval* apart
 2. Problem clears -> **recovered**
-3. Still on *Interval* after the last attempt -> **gave up**; no more resets until the problem clears and comes back
+3. Still on *Interval* after the last attempt -> if *Reboot* is on, the camera is rebooted once (Blue Iris' reboot command, only for cameras that support it) and gets one more *Interval*; then **gave up**. No more resets until the problem clears and comes back
 
 It pauses while Connection Health is not `connected` and for the first 5 minutes of Blue Iris uptime, so an outage or a Blue Iris restart never triggers resets. Progress is on the Problem sensor (`auto_reset_state`: off, paused, idle, waiting, resetting, gave_up; `auto_reset_attempts`; `auto_reset_last`). After a Home Assistant restart the count starts over.
 
 Each camera gets one persistent notification (camera, problem, since, then the outcome), updated in place. Turn them off with *Persistent notifications* in Configure -> Auto reset defaults, or the server's Auto Reset Notifications switch (both are the same setting).
 
-Every step also fires the event `blueiris_auto_reset` with `type` (`reset`, `recovered`, `gave_up`), `camera_id`, `camera_name`, `entity_id` (the camera entity), `reason`, `since`, `attempt`, `max_attempts` and `error`. For a phone alert with a snapshot when a camera gives up:
+Every step also fires the event `blueiris_auto_reset` with `type` (`reset`, `reboot`, `recovered`, `gave_up`), `rebooted`, `camera_id`, `camera_name`, `entity_id` (the camera entity), `reason`, `since`, `attempt`, `max_attempts` and `error`. For a phone alert with a snapshot when a camera gives up:
 
 ```yaml
 triggers:

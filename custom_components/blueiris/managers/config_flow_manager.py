@@ -445,6 +445,13 @@ class ConfigFlowManager:
             ): BooleanSelector(),
         }
 
+        fields[
+            vol.Optional(
+                CONF_AUTO_RESET_DEFAULTS[AUTO_RESET_KEY_REBOOT],
+                default=defaults[AUTO_RESET_KEY_REBOOT],
+            )
+        ] = BooleanSelector()
+
         for key, _label, unit, _icon in AUTO_RESET_NUMBERS:
             minimum, maximum, step = AUTO_RESET_LIMITS[key]
             fields[
