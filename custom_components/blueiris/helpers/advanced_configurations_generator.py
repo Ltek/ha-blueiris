@@ -248,8 +248,8 @@ class AdvancedConfigurationGenerator:
         if username is not None and password is not None:
             credentials = f"?user={username}&pw={password}"
 
-        url = f"{base_url}/{stream_type.lower()}"
-        qs = f"/{video}{credentials}"
+        url = f"{base_url}/{video['stream_name']}"
+        qs = f"/{video.get('file_name', '')}{credentials}"
 
         stream_source = f"'{url}/' ~ camera_list[states.input_select.{input_select_camera}.state] ~ '{qs}'"
 
