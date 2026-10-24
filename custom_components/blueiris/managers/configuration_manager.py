@@ -79,6 +79,13 @@ class ConfigManager:
             for key, option_key in CONF_CAMERA_CONTROLS.items()
         }
 
+        result.camera_sensors = {
+            key: options.get(option_key)
+            if option_key in options
+            else ([] if key in CAMERA_SENSORS_DEFAULT_OFF else None)
+            for key, option_key in CONF_CAMERA_SENSORS.items()
+        }
+
         result.server_sensors = {
             key: bool(options.get(option_key, True))
             for key, option_key in CONF_SERVER_SENSORS.items()

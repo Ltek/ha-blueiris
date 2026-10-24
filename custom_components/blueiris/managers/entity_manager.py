@@ -10,6 +10,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import (
     PERCENTAGE,
     EntityCategory,
+    UnitOfDataRate,
     UnitOfInformation,
     UnitOfTime,
 )
@@ -285,6 +286,7 @@ class EntityManager:
             self.generate_camera_reset_button(camera, is_admin)
             self.generate_camera_auto_reset_entities(camera, is_admin)
             self.generate_camera_controls(camera, is_admin)
+            self.generate_camera_sensors(camera)
             current_mqtt_binary_sensors = self.generate_camera_binary_sensors(camera)
 
             mqtt_binary_sensors.extend(current_mqtt_binary_sensors)
@@ -798,6 +800,130 @@ class EntityManager:
         except Exception as ex:
             self.log_exception(ex, f"Failed to generate camera controls for {camera}")
 
+    def _camera_sensor_allowed(self, key, camera: CameraData) -> bool:
+        allowed = self.config_data.camera_sensors[key]
+        return camera.is_physical and (allowed is None or camera.id in allowed)
+
+    @staticmethod
+    def _bitrate_kbps(data: dict, *keys) -> Optional[float]:
+        for key in keys:
+            value = data.get(key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                # Blue Iris sends bytes per second
+                return round(value * 8 / 1000, 1)
+        return None
+
+    @staticmethod
+    def get_last_alert_time(data: dict) -> Optional[datetime]:
+        """alertutc (seconds) or lastalertutc (milliseconds)."""
+        value = data.get("alertutc")
+        scale = 1
+
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            value = data.get("lastalertutc")
+            scale = 1000
+
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
+            return None
+
+        return datetime.fromtimestamp(value / scale, tz=timezone.utc)
+
+    def generate_camera_sensors(self, camera: CameraData):
+        try:
+            device_name = self.device_manager.get_camera_device_name(camera)
+            data = camera.data
+            base = f"{self.integration_title} {camera.name}"
+            diagnostic = {ENTITY_SENSOR_CATEGORY: EntityCategory.DIAGNOSTIC}
+            rate = {
+                **diagnostic,
+                ENTITY_SENSOR_DEVICE_CLASS: SensorDeviceClass.DATA_RATE,
+                ENTITY_SENSOR_UNIT: UnitOfDataRate.KILOBITS_PER_SECOND,
+                ENTITY_SENSOR_STATE_CLASS: SensorStateClass.MEASUREMENT,
+            }
+            sensors = []
+
+            if self._camera_sensor_allowed(CAMERA_SENSOR_BITRATE, camera):
+                sensors.append(
+                    (
+                        "Bitrate",
+                        self._bitrate_kbps(data, "BPS", "bps"),
+                        "mdi:speedometer",
+                        rate,
+                        {
+                            "fps": data.get("FPS", data.get("fps")),
+                            "width": data.get("width"),
+                            "height": data.get("height"),
+                        },
+                    )
+                )
+
+                # Only cameras with a sub stream report it
+                if any(k in data for k in ("BPS2", "bps2")):
+                    sensors.append(
+                        (
+                            "Substream Bitrate",
+                            self._bitrate_kbps(data, "BPS2", "bps2"),
+                            "mdi:speedometer-medium",
+                            rate,
+                            {
+                                "fps": data.get("FPS2", data.get("fps2")),
+                                "width": data.get("width2"),
+                                "height": data.get("height2"),
+                            },
+                        )
+                    )
+
+            if self._camera_sensor_allowed(CAMERA_SENSOR_LAST_ALERT, camera):
+                sensors.append(
+                    (
+                        "Last Alert",
+                        self.get_last_alert_time(data),
+                        "mdi:bell-badge-outline",
+                        {ENTITY_SENSOR_DEVICE_CLASS: SensorDeviceClass.TIMESTAMP},
+                        {
+                            "new_alerts": data.get("newalerts"),
+                            "alerts": data.get("nAlerts"),
+                            "triggers": data.get("nTriggers"),
+                            "clips": data.get("nClips"),
+                            "record": data.get("lastalert"),
+                        },
+                    )
+                )
+
+            for label, state, icon, details, attributes in sensors:
+                entity = self._config_entity(
+                    DOMAIN_SENSOR,
+                    f"{base} {label}",
+                    camera.id,
+                    device_name,
+                    CAMERA_SENSOR,
+                    state,
+                    icon,
+                    details,
+                )
+                entity.attributes.update(attributes)
+                self.set_entity(DOMAIN_SENSOR, entity.name, entity)
+
+            for key, (field, label, icon) in CAMERA_STATE_SENSORS.items():
+                if not self._camera_sensor_allowed(key, camera):
+                    continue
+
+                entity = self._config_entity(
+                    DOMAIN_BINARY_SENSOR,
+                    f"{base} {label}",
+                    camera.id,
+                    device_name,
+                    CAMERA_SENSOR,
+                    bool(data.get(field, False)),
+                    icon,
+                    {},
+                )
+                # Plain state, not an alert for the server's Alerts sensor
+                entity.event = None
+                self.set_entity(DOMAIN_BINARY_SENSOR, entity.name, entity)
+        except Exception as ex:
+            self.log_exception(ex, f"Failed to generate camera sensors for {camera}")
+
     def generate_auto_reset_server_switches(self, system_device_name, is_admin):
         try:
             auto_reset = self.ha.auto_reset_manager
@@ -1060,7 +1186,9 @@ class EntityManager:
                 entity_event = entity.event
                 entity_state = entity.state
 
-                if entity_event is not None:
+                # Only event sensors (MQTT, Problem); not plain state sensors
+                # nor this Alerts sensor itself, which kept itself on
+                if entity_event:
                     event_alerts = alerts.get(entity_event, [])
                     is_on = entity_state
 

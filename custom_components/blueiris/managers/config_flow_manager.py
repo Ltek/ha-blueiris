@@ -221,6 +221,16 @@ class ConfigFlowManager:
                 )
             )
 
+        for key, option_key in CONF_CAMERA_SENSORS.items():
+            categories.append(
+                (
+                    option_key,
+                    config_data.camera_sensors[key],
+                    supported_physical_camera,
+                    True,
+                )
+            )
+
         result = []
         for name, checked, items, enabled in categories:
             if checked is not None:

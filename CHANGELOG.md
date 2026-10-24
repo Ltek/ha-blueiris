@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.10.24.34
+
+- Add camera sensors, chosen per camera in Configure -> Camera sensors: Bitrate and Substream Bitrate (kbit/s, with FPS and resolution) and Last Alert on by default; Recording, Triggered and Alerting off by default
+- Fix: the server's Alerts sensor counted itself, so once on it could stay on
+
 ## v2026.10.24.33
 
 - Add camera controls (admin user), chosen per camera in Configure -> Camera controls: Enabled switch, Pause select (Off, 30 s ... 24 h, Indefinitely), Manual Recording switch and Snapshot to Database button on by default; Motion Detection switch and Reboot button off by default

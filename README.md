@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current build: **v2026.10.24.33** · full history in [CHANGELOG.md](CHANGELOG.md)
+Current build: **v2026.10.24.34** · full history in [CHANGELOG.md](CHANGELOG.md)
 
 ## Features
 
@@ -14,6 +14,7 @@ Current build: **v2026.10.24.33** · full history in [CHANGELOG.md](CHANGELOG.md
 - **Streams**: H264 (HLS), H264 TS or MJPEG, optionally through the Home Assistant stream component
 - **Problem binary sensor** per camera: on when Blue Iris reports no signal, offline or a stalled stream
 - **Reset button** per camera
+- **Camera sensors** per camera: Bitrate (main and sub stream), Last Alert; optional Recording, Triggered, Alerting
 - **Camera controls** per camera: Enabled, Pause, Manual Recording, Snapshot to Database; optional Motion Detection and Reboot
 - **Auto reset** per camera: resets cameras whose Problem sensor stays on, with per-camera delay / attempts / interval you can change live
 - **Binary sensors** per camera from MQTT: Motion, Audio, Connectivity, DIO, External, plus a server-level Alerts sensor
@@ -81,6 +82,7 @@ The options are two pages.
 | Section              | Items                                    | Shown when                     |
 | -------------------- | ---------------------------------------- | ------------------------------ |
 | Camera controls      | One choice per control (see Camera controls); cameras, not groups | User has admin rights |
+| Camera sensors       | One choice per sensor (see Camera sensors); cameras, not groups | Always |
 | Camera components    | All cameras, groups and system cameras   | Always                         |
 | Problem sensors      | Cameras (not groups or system cameras)   | Always                         |
 | Motion sensors       | Non-system cameras                       | MQTT integration is set up     |
@@ -282,6 +284,21 @@ actions:
 ```
 
 Blue Iris has its own per-camera Watchdog (camera properties) for signal loss. If it is on, give it a shorter timeout than the auto reset delay, or turn one of them off for that camera.
+
+###### Camera sensors
+
+Per camera (not groups or system cameras), from Blue Iris' camera list on every poll. Choose which cameras get each sensor in Configure -> Camera sensors.
+
+| Entity                                     | Default | Value                                                                     |
+| ------------------------------------------ | ------- | ------------------------------------------------------------------------- |
+| `sensor.<camera>_bitrate`                  | All     | Main stream, kbit/s (Blue Iris sends bytes/s); attributes fps, width, height (diagnostic) |
+| `sensor.<camera>_substream_bitrate`        | All     | Same for the sub stream; only for cameras that have one (diagnostic)      |
+| `sensor.<camera>_last_alert`               | All     | Time of the most recent alert; attributes new_alerts, alerts, triggers, clips, record |
+| `binary_sensor.<camera>_recording`         | None    | Recording                                                                 |
+| `binary_sensor.<camera>_triggered`         | None    | Triggered                                                                 |
+| `binary_sensor.<camera>_alerting`          | None    | Sending an alert                                                          |
+
+Recording, Triggered and Alerting come from the 30 s poll, so short events can be missed; the MQTT Motion sensors are better for motion.
 
 ###### Camera controls (admin user)
 
