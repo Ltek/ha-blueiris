@@ -55,26 +55,39 @@ Look for "Blue Iris NVR" and install
 | Username    | Textbox   | -        |           | Username of admin user for BlueIris server    |
 | Password    | Textbox   | -        |           | Password of admin user for BlueIris server    |
 
-###### Integration options (Configuration -> Integrations -> BlueIris Integration -> Options)
+###### Integration options (Settings -> Devices & Services -> BlueIris -> Configure)
 
-| Fields name                          | Type      | Required | Default                               | Description                                                                                                                 |
-| ------------------------------------ | --------- | -------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Host                                 | Texbox    | +        | Last stored hostname                  | Hostname or IP address of the BlueIris server                                                                               |
-| Port                                 | Textbox   | +        | Last stored port                      | HTTP Port to access BlueIris server                                                                                         |
-| SSL                                  | Check-box | +        | Last stored SSL flag                  | Is SSL supported?                                                                                                           |
-| Username                             | Textbox   | -        | Last stored username                  | Username of admin user for BlueIris server                                                                                  |
-| Password                             | Textbox   | -        | Last stored password                  | Password of admin user for BlueIris server                                                                                  |
-| Clear credentials                    | Check-box | +        | Unchecked                             | Workaround to clear the username & password since there is not support for optional fields (Not being stored under options) |
-| Generate configurations              | Check-box | +        | Unchecked                             | Will take generate store and configuration for HA, more details below (Not being stored under options)                      |
-| Log level                            | Drop-down | +        | Default                               | Changes component's log level (more details below)                                                                          |
-| Reset components settings to default | Check-box | +        | Unchecked                             | Will reset drown-downs of componet's creation to their default (Not being stored under options)                             |
-| Camera components                    | Drop-down | -        | All camera                            | Will create camera for each of the chosen camera                                                                            |
-| Motion sensors                       | Drop-down | -        | All non-system camera                 | Will create binary sensor for each of the chosen camera                                                                     |
-| Connectivity sensors                 | Drop-down | -        | All non-system camera                 | Will create connectivity binary sensor for each of the chosen camera                                                        |
-| Audio sensors                        | Drop-down | -        | All audio supported non-system camera | Will create audio binary sensor for each of the chosen camera                                                               |
-| Profile switches                     | Drop-down | -        | All profiles                          | Will create switch for each of the chosen profiles                                                                          |
-| Stream type                          | Drop-down | -        | H264                                  | Defines the stream type H264 / MJPG                                                                                         |
-| Stream support                       | Check-box | -        | False                                 | Defines whether to use `Stream` component for preview camera, requires restart to affect                                    |
+The options are two pages.
+
+**Page 1 - which components to create.** Each section has a drop-down with three choices; the labels show how many items the section has and how many are currently selected, e.g. `Choose… (3 of 15 selected)`:
+
+| Choice    | Effect                                                                                  |
+| --------- | --------------------------------------------------------------------------------------- |
+| All (n)   | Creates the component for every item, including cameras added to Blue Iris later        |
+| None (0)  | Turns the section off; no entities are created for it                                    |
+| Choose…   | Opens a checkbox list for that section on page 2                                         |
+
+| Section              | Items                                    | Shown when                     |
+| -------------------- | ---------------------------------------- | ------------------------------ |
+| Camera components    | All cameras, groups and system cameras   | Always                         |
+| Motion sensors       | Non-system cameras                       | MQTT integration is set up     |
+| Connectivity sensors | Non-system cameras                       | MQTT integration is set up     |
+| Audio sensors        | Non-system cameras that support audio    | MQTT integration is set up     |
+| DIO sensors          | Non-system cameras                       | MQTT integration is set up     |
+| External sensors     | Non-system cameras                       | MQTT integration is set up     |
+| Profile switches     | Blue Iris profiles                       | User has admin rights          |
+| Schedule switches    | Blue Iris schedules                      | User has admin rights          |
+
+A section that is not shown keeps its saved setting.
+
+Two collapsed groups below hold the other settings:
+
+| Group               | Fields                                                                                                                       |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Connection          | Host, Port, SSL, Username, Password, Clear credentials (workaround to clear the username and password; not stored as option) |
+| Streams and logging | Stream type (H264 / H264 TS / MJPEG), Stream support (requires restart), Log level, Generate configuration files            |
+
+**Page 2 - choose items.** Only appears when at least one section is set to `Choose…`. Each of those sections is a group with a checkbox per item, pre-filled with the current selection.
 
 **Integration's title**
 Title will be extracted from BlueIris server's configuration, it will be set upon adding the server, and after every Option's change
@@ -87,16 +100,6 @@ New feature to set the log level for the component without need to set log_level
 Upon startup or integration's option update, based on the value chosen, the component will make a service call to `logger.set_level` for that component with the desired value,
 
 In case `Default` option is chosen the service call will not happen. Therefore after changing from any other option to `Default` a restart is required.
-
-**Control component's creation**
-New feature to control which of the components will be created:
-
-- Sensors drop-down will be available only when MQTT component is defined
-- Audio sensors drop-down will include only audio support non-system camera
-- Connectivity and Motion sensors will be created only for non-system camera
-- Profile's drop-down will be available only when admin user's credentials set to the integration
-- Once configuration manually changed, new camera that will be added will require manually setting configuration
-- To restore defaults which allows automatically adding new camera, check the check-box of Reset components settings to default
 
 ###### Auto-generating configurations files:
 

@@ -156,11 +156,9 @@ class EntityManager:
         allowed_schedule = config_data.allowed_schedule
         system_device_name = self.system_device_name
 
-        if (
-            is_admin
-            and (allowed_profile is None or len(allowed_profile) > 0)
-            and (allowed_schedule is None or len(allowed_schedule) > 0)
-        ):
+        # Each list filters only its own switches; an empty profile list
+        # must not hide the schedule switches (or the other way round)
+        if is_admin:
             for profile_name in available_profiles:
                 profile_id = available_profiles.index(profile_name)
 
