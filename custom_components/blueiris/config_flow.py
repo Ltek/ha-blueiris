@@ -162,20 +162,26 @@ class DomainOptionsFlowHandler(config_entries.OptionsFlow):
         )
         # An action, not a setting: never stored in the options
         apply_defaults = options_input.pop(CONF_AUTO_RESET_APPLY_DEFAULTS, False)
+        notifications = options_input.pop(CONF_AUTO_RESET_NOTIFICATIONS, None)
 
         try:
             options = await self._config_flow.update_options(
                 options_input, CONFIG_FLOW_OPTIONS
             )
 
-            if apply_defaults:
-                ha = get_ha(self.hass, self._config_entry.entry_id)
-                if ha is not None and ha.auto_reset_manager is not None:
-                    ha.auto_reset_manager.reset_cameras_to_defaults()
+            ha = get_ha(self.hass, self._config_entry.entry_id)
+            auto_reset = None if ha is None else ha.auto_reset_manager
 
-                    # Unchanged options don't reload the entry; refresh now
-                    ha.entity_manager.update()
-                    await ha.dispatch_all()
+            if auto_reset is not None and (apply_defaults or notifications is not None):
+                if apply_defaults:
+                    auto_reset.reset_cameras_to_defaults()
+
+                if notifications is not None:
+                    auto_reset.set_flag(AUTO_RESET_KEY_NOTIFICATIONS, notifications)
+
+                # Unchanged options don't reload the entry; refresh now
+                ha.entity_manager.update()
+                await ha.dispatch_all()
 
             return self.async_create_entry(title=self._config_flow.title, data=options)
 

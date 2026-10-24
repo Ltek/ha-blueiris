@@ -301,16 +301,23 @@ class ConfigFlowManager:
         ha = self._get_ha(self._config_entry.entry_id)
         if ha.api.data.get("admin", False):
             fields[vol.Required(OPTION_SECTION_AUTO_RESET)] = section(
-                vol.Schema(self._get_auto_reset_fields(config_data)),
+                vol.Schema(
+                    self._get_auto_reset_fields(
+                        config_data, ha.auto_reset_manager.notifications
+                    )
+                ),
                 {"collapsed": True},
             )
 
         return vol.Schema(fields)
 
     @staticmethod
-    def _get_auto_reset_fields(config_data: ConfigData) -> dict:
+    def _get_auto_reset_fields(config_data: ConfigData, notifications: bool) -> dict:
         defaults = config_data.auto_reset_defaults
         fields = {
+            vol.Optional(
+                CONF_AUTO_RESET_NOTIFICATIONS, default=notifications
+            ): BooleanSelector(),
             vol.Optional(
                 CONF_AUTO_RESET_DEFAULTS[AUTO_RESET_KEY_ENABLED],
                 default=defaults[AUTO_RESET_KEY_ENABLED],

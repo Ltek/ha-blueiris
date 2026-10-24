@@ -233,6 +233,8 @@ CONF_AUTO_RESET_DEFAULTS = {
 }
 # Action, not stored: clear every camera's own values
 CONF_AUTO_RESET_APPLY_DEFAULTS = "auto_reset_apply_defaults"
+# Stored with the auto reset settings (same as the server switch), not in options
+CONF_AUTO_RESET_NOTIFICATIONS = "auto_reset_notifications"
 OPTION_SECTION_AUTO_RESET = "auto_reset"
 
 # key: (min, max, step)

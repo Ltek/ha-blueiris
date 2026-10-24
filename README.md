@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current version: **1.0.28** · [Changelog](CHANGELOG.md)
+Current version: **1.0.29** · [Changelog](CHANGELOG.md)
 
 ## Features
 
@@ -92,7 +92,7 @@ Two collapsed groups below hold the other settings:
 
 | Group               | Fields                                                                                                                       |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Auto reset defaults | On by default, Delay, Attempts, Interval, Set all cameras back to these defaults (admin user only)                          |
+| Auto reset defaults | Persistent notifications, On by default, Delay, Attempts, Interval, Set all cameras back to these defaults (admin user only) |
 | Connection          | Host, Port, SSL, Username, Password, Clear credentials (workaround to clear the username and password; not stored as option) |
 | Streams and logging | Stream type (H264 / H264 TS / MJPEG), Stream support (requires restart), Log level, Generate configuration files            |
 
@@ -251,7 +251,7 @@ How it works, on every successful poll:
 
 It pauses while Connection Health is not `connected` and for the first 5 minutes of Blue Iris uptime, so an outage or a Blue Iris restart never triggers resets. Progress is on the Problem sensor (`auto_reset_state`: off, paused, idle, waiting, resetting, gave_up; `auto_reset_attempts`; `auto_reset_last`). After a Home Assistant restart the count starts over.
 
-Each camera gets one persistent notification (camera, problem, since, then the outcome), updated in place.
+Each camera gets one persistent notification (camera, problem, since, then the outcome), updated in place. Turn them off with *Persistent notifications* in Configure -> Auto reset defaults, or the server's Auto Reset Notifications switch (both are the same setting).
 
 Every step also fires the event `blueiris_auto_reset` with `type` (`reset`, `recovered`, `gave_up`), `camera_id`, `camera_name`, `entity_id` (the camera entity), `reason`, `since`, `attempt`, `max_attempts` and `error`. For a phone alert with a snapshot when a camera gives up:
 
