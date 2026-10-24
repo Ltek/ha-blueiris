@@ -1,4 +1,4 @@
-# BlueIris
+# Blue Iris (Ltek)
 
 [![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Ltek&repository=ha-blueiris&category=integration)
 
@@ -39,7 +39,7 @@ Current version: **1.0.24** · [Changelog](CHANGELOG.md)
 
 #### Installations via HACS
 
-Click the button at the top, or in HACS → ⋮ → Custom repositories add `https://github.com/Ltek/ha-blueiris` as an **Integration**, then download "BlueIris NVR" and restart Home Assistant.
+Click the button at the top, or in HACS → ⋮ → Custom repositories add `https://github.com/Ltek/ha-blueiris` as an **Integration**, then download "Blue Iris (Ltek)" and restart Home Assistant.
 
 Replacing an existing elad-bar install: remove that repository inside HACS first (do not delete the integration under Settings → Devices & Services), then add this one. The config entry and entities carry over.
 
