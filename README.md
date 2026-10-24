@@ -118,6 +118,10 @@ The following errors can appear:
 - Invalid administrator credentials - credentials are invalid or user is not an admin
 - Invalid server details - Cannot reach the server
 
+###### Diagnostics
+
+Settings -> Devices & Services -> BlueIris -> ⋮ -> Download diagnostics produces a JSON file for bug reports: login state, server version and status, the stream-related fields of every camera (online, no signal, FPS, error) and the entity list. Host, username, password, session ID, license, location and stream / image URLs are redacted.
+
 ###### Encryption key got corrupted
 
 If a persistent notification popped up with the following message:
