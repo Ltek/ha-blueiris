@@ -302,6 +302,9 @@ class ConfigFlowManager:
         fields[vol.Required(OPTION_SECTION_SERVER)] = section(
             vol.Schema(self.get_server_fields(config_data)), {"collapsed": True}
         )
+        fields[vol.Required(OPTION_SECTION_LOG)] = section(
+            vol.Schema(self.get_log_fields(config_data)), {"collapsed": True}
+        )
 
         connection_fields = self._get_default_fields(CONFIG_FLOW_OPTIONS)
         connection_fields[vol.Optional(CONF_CLEAR_CREDENTIALS, default=False)] = bool
@@ -348,11 +351,39 @@ class ConfigFlowManager:
 
     @staticmethod
     def get_server_fields(config_data: ConfigData) -> dict:
-        return {
+        fields = {
             vol.Optional(option_key, default=config_data.server_sensors[key]): (
                 BooleanSelector()
             )
             for key, option_key in CONF_SERVER_SENSORS.items()
+        }
+        # Controls need admin rights; without them they are simply not created
+        fields.update(
+            {
+                vol.Optional(option_key, default=config_data.server_controls[key]): (
+                    BooleanSelector()
+                )
+                for key, option_key in CONF_SERVER_CONTROLS.items()
+            }
+        )
+
+        return fields
+
+    @staticmethod
+    def get_log_fields(config_data: ConfigData) -> dict:
+        return {
+            vol.Optional(CONF_LOG_EVENTS, default=config_data.log_events): (
+                BooleanSelector()
+            ),
+            vol.Optional(CONF_LOG_MIN_LEVEL, default=config_data.log_min_level): (
+                SelectSelector(
+                    SelectSelectorConfig(
+                        options=list(LOG_MIN_LEVELS),
+                        mode=SelectSelectorMode.DROPDOWN,
+                        translation_key="log_min_level",
+                    )
+                )
+            ),
         }
 
     def get_setup_features_schema(self) -> vol.Schema:

@@ -38,12 +38,37 @@ async def async_unload_entry(_hass, config_entry):
 def get_select(hass: HomeAssistant, host: str, entity: EntityData):
     if entity.type == CAMERA_CONTROL:
         select = BlueIrisPauseSelect()
+    elif entity.type == SERVER_CONTROL:
+        select = BlueIrisShieldSelect()
     else:
         select = BlueIrisLogLevelSelect()
 
     select.initialize(hass, host, entity, CURRENT_DOMAIN)
 
     return select
+
+
+class BlueIrisShieldSelect(SelectEntity, BlueIrisEntity):
+    """Blue Iris' shield: Armed (green), Disarmed (red), Arming (yellow)."""
+
+    _attr_options = list(SHIELD_OPTIONS)
+
+    @property
+    def current_option(self):
+        return self.entity.state
+
+    @property
+    def icon(self):
+        return self.entity.icon
+
+    async def async_select_option(self, option: str) -> None:
+        try:
+            await self.api.set_shield(SHIELD_OPTIONS[option])
+        except BlueIrisCommandError as ex:
+            _LOGGER.error(str(ex))
+            raise HomeAssistantError(str(ex)) from ex
+
+        await self.ha.async_update(None)
 
 
 class BlueIrisPauseSelect(SelectEntity, BlueIrisEntity):

@@ -37,6 +37,11 @@ async def async_unload_entry(_hass, config_entry):
 
 
 def get_switch(hass: HomeAssistant, host: str, entity: EntityData):
+    if entity.type == SERVER_CONTROL:
+        switch = BlueIrisProfileHoldSwitch()
+        switch.initialize(hass, host, entity, CURRENT_DOMAIN)
+        return switch
+
     if entity.type == CAMERA_CONTROL:
         switch = BlueIrisCameraControlSwitch()
         switch.initialize(hass, host, entity, CURRENT_DOMAIN)
@@ -56,6 +61,33 @@ def get_switch(hass: HomeAssistant, host: str, entity: EntityData):
     switch.initialize(hass, host, entity, CURRENT_DOMAIN)
 
     return switch
+
+
+class BlueIrisProfileHoldSwitch(SwitchEntity, BlueIrisEntity):
+    """On: hold the current profile. Off: follow the schedule (run)."""
+
+    @property
+    def is_on(self):
+        return self.entity.state
+
+    @property
+    def icon(self):
+        return self.entity.icon
+
+    async def async_turn_on(self, **kwargs):
+        await self._async_set(True)
+
+    async def async_turn_off(self, **kwargs):
+        await self._async_set(False)
+
+    async def _async_set(self, hold: bool):
+        try:
+            await self.api.set_profile_hold(hold)
+        except BlueIrisCommandError as ex:
+            _LOGGER.error(str(ex))
+            raise HomeAssistantError(str(ex)) from ex
+
+        await self.ha.async_update(None)
 
 
 class BlueIrisCameraControlSwitch(SwitchEntity, BlueIrisEntity):
