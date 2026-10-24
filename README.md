@@ -185,6 +185,32 @@ State: Idle
 | Error                                           |
 | Group Cameras (list of camera names if a group) |
 
+###### Sensor - Connection Health
+
+Health of the connection to the Blue Iris server, refreshed on every poll. Useful to keep automations from acting on stale camera data while the server is down.
+
+| State                | Meaning                                                   |
+| -------------------- | --------------------------------------------------------- |
+| `connecting`         | No poll has completed yet                                 |
+| `connected`          | Last poll succeeded                                       |
+| `server_unreachable` | Blue Iris did not respond                                 |
+| `auth_failed`        | Blue Iris responded but the login was rejected            |
+| `error`              | Logged in, but Blue Iris returned a failure for a request |
+
+| Attributes           |
+| -------------------- |
+| last_update_success  |
+| last_success_time    |
+| consecutive_failures |
+| is_logged_in         |
+| bi_version           |
+| profile              |
+| schedule             |
+
+###### Sensor - Uptime
+
+Blue Iris software uptime (duration, shown in hours by default), diagnostic entity
+
 ###### Switch - Profile (Per profile)
 
 Allows setting the active profile, only one of the profile switches can be turned on at a time.

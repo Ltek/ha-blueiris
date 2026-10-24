@@ -3,6 +3,8 @@ import sys
 from typing import Optional
 
 from homeassistant.components.camera import DEFAULT_CONTENT_TYPE
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.components.stream import DOMAIN as DOMAIN_STREAM
 from homeassistant.const import CONF_AUTHENTICATION
 from homeassistant.core import HomeAssistant
@@ -18,6 +20,24 @@ from .configuration_manager import ConfigManager
 from .device_manager import DeviceManager
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _parse_uptime(value) -> Optional[int]:
+    """Convert Blue Iris' D:HH:MM:SS uptime to seconds."""
+    if not isinstance(value, str):
+        return None
+
+    parts = value.strip().split(":")
+
+    if len(parts) != 4:
+        return None
+
+    try:
+        days, hours, minutes, seconds = map(int, parts)
+    except ValueError:
+        return None
+
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
 
 def _get_camera_binary_sensor_key(topic, event_type):
@@ -173,6 +193,8 @@ class EntityManager:
 
                 if allowed_schedule is None or str(schedule_id) in allowed_schedule:
                     self.generate_schedule_switch(schedule_name, system_device_name)
+
+        self.generate_server_sensors(system_device_name)
 
         mqtt_binary_sensors = []
         for camera in available_camera:
@@ -362,6 +384,74 @@ class EntityManager:
             self.log_exception(
                 ex, f"Failed to generate schedule switch {schedule_name} "
             )
+
+    def get_connection_health_sensor(self, system_device_name) -> EntityData:
+        entity_name = f"{self.integration_title} {SENSOR_CONNECTION_HEALTH_NAME}"
+        unique_id = f"{DOMAIN}-{DOMAIN_SENSOR}-{entity_name}"
+
+        api = self.api
+        last_success_time = api.last_success_time
+
+        attributes = {
+            ATTR_FRIENDLY_NAME: entity_name,
+            "last_update_success": api.last_update_success,
+            "last_success_time": None
+            if last_success_time is None
+            else last_success_time.isoformat(),
+            "consecutive_failures": api.consecutive_failures,
+            "is_logged_in": api.is_logged_in,
+            "bi_version": api.data.get("version"),
+            "profile": api.status.get("profile"),
+            "schedule": api.status.get("schedule"),
+        }
+
+        entity = EntityData()
+
+        entity.unique_id = unique_id
+        entity.name = entity_name
+        entity.state = api.connection_state
+        entity.attributes = attributes
+        entity.icon = CONNECTION_HEALTH_ICON
+        entity.device_name = system_device_name
+        entity.type = SENSOR_CONNECTION_HEALTH_NAME
+        entity.details = {
+            ENTITY_SENSOR_DEVICE_CLASS: SensorDeviceClass.ENUM,
+            ENTITY_SENSOR_OPTIONS: CONNECTION_STATES,
+        }
+
+        return entity
+
+    def get_uptime_sensor(self, system_device_name) -> EntityData:
+        entity_name = f"{self.integration_title} {SENSOR_UPTIME_NAME}"
+        unique_id = f"{DOMAIN}-{DOMAIN_SENSOR}-{entity_name}"
+
+        entity = EntityData()
+
+        entity.unique_id = unique_id
+        entity.name = entity_name
+        entity.state = _parse_uptime(self.api.status.get("uptime"))
+        entity.attributes = {ATTR_FRIENDLY_NAME: entity_name}
+        entity.icon = UPTIME_ICON
+        entity.device_name = system_device_name
+        entity.type = SENSOR_UPTIME_NAME
+        entity.details = {
+            ENTITY_SENSOR_DEVICE_CLASS: SensorDeviceClass.DURATION,
+            ENTITY_SENSOR_UNIT: UnitOfTime.SECONDS,
+            ENTITY_SENSOR_SUGGESTED_UNIT: UnitOfTime.HOURS,
+            ENTITY_SENSOR_CATEGORY: EntityCategory.DIAGNOSTIC,
+        }
+
+        return entity
+
+    def generate_server_sensors(self, system_device_name):
+        try:
+            for entity in [
+                self.get_connection_health_sensor(system_device_name),
+                self.get_uptime_sensor(system_device_name),
+            ]:
+                self.set_entity(DOMAIN_SENSOR, entity.name, entity)
+        except Exception as ex:
+            self.log_exception(ex, "Failed to generate server sensors")
 
     def get_main_binary_sensor(self) -> EntityData:
         entity = None
