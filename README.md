@@ -2,46 +2,40 @@
 
 [![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Ltek&repository=ha-blueiris&category=integration)
 
-> **Ltek fork** of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). Adds the `reset_camera` and `current_camera_snapshot` services, Connection Health and Uptime sensors, an `H264 TS` stream type and a diagnostics download. Same `blueiris` domain, so it replaces the upstream install in place. Changes are offered upstream as PRs.
+Home Assistant integration for Blue Iris Video Security Software, polling the Blue Iris JSON API and listening to its MQTT events.
 
-## Description
+Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Integration with Blue Iris Video Security Software. Creates the following components:
+Current version: **1.0.24** · [Changelog](CHANGELOG.md)
 
-- Camera - per-camera defined.
-- MQTT Binary Sensors (MOTION, AUDIO, WATCHDOG) - per-camera defined.
-- Switch (Arm / Unarmed) - only when profiles and admin username and password are provided.
-- Support HLS Streams instead of H264.
-- Support SSL with self-signed certificate.
+## Features
 
-[Changelog](CHANGELOG.md)
+- **Camera** per Blue Iris camera, group and system camera (All, Cycle), with live attributes (FPS, online, no signal count, error, ...)
+- **Streams**: H264 (HLS), H264 TS or MJPEG, optionally through the Home Assistant stream component
+- **Binary sensors** per camera from MQTT: Motion, Audio, Connectivity, DIO, External, plus a server-level Alerts sensor
+- **Sensors** for the server: Connection Health and Uptime
+- **Switches** for Blue Iris profiles and schedules (admin user required)
+- **Services**: Trigger Camera, Move to Preset, Reset Camera, Current Camera Snapshot
+- **Diagnostics** download for bug reports
+- SSL with self-signed certificates
 
-## Component is no longer being maintained by elad-bar
+## New in this fork
 
-I switched to Shinobi Video, if there is an issue, feel free to report, suggest PR and I will approve it
-
-kramttocs is working to maintain it but any assistance or PRs are welcome
-
-> **4/30/2026**
-> 
-> I have created a separate Blue Iris integration for Home Assistant:
->
-> https://github.com/kramttocs/ha-blueiris
->
-> While no doubt influenced by this project, it has diverged significantly in code structure, entity model, and setup behavior, so it is maintained as its own codebase.
->
-> I will still try to provide high-level support and answer questions here when I can.
->
-> — kramttocs
+- `blueiris.reset_camera` service: resets (reconnects) a frozen or "No signal" camera, the same as Blue Iris' Reset command. Raises an error with Blue Iris' reason when it fails
+- `blueiris.current_camera_snapshot` service: saves the current still to `media/blueiris/` and returns a `/media/local` URL for notifications
+- Connection Health sensor: `connected`, `server_unreachable`, `auth_failed` or `error`, so automations can ignore stale camera data while the server is down
+- Uptime sensor: Blue Iris software uptime, e.g. to hold off automations right after a Blue Iris restart
+- `H264 TS` stream type (`temp.ts`), which can work better for group and cycle cameras
+- Diagnostics download with host, credentials, session and location redacted
 
 ## How to
 
 #### Requirements
 
 - BlueIris Server available with a user
-- To control profiles, user must have 'admin' level permissions
+- To control profiles and schedules, and to use Reset Camera, the user must have 'admin' level permissions
 - MQTT Integration is optional - it will allow listening to BlueIris events
-- Read the [BlueIris manual](https://github.com/elad-bar/ha-blueiris/blob/master/docs/blueiris-server.md) for this component
+- Read the [BlueIris manual](docs/blueiris-server.md) for this component
 
 #### Installations via HACS
 
@@ -112,7 +106,7 @@ Will create YAML with all the configurations in the config directory under bluei
 - Script to cast based on the selection
 - UI of all the components created by BlueIris based on the description above
 
-[Example of configuration output](https://github.com/elad-bar/ha-blueiris/blob/master/docs/configs/casting/configuration.yaml)
+[Example of configuration output](docs/configs/casting/configuration.yaml)
 
 ###### Configuration validations
 
@@ -254,7 +248,7 @@ Current Camera Snapshot: Saves the camera's current still image to `media/blueir
 
 ## Lovelace UI Configuration
 
-[Example of UI layout](https://github.com/elad-bar/ha-blueiris/blob/master/docs/configs/casting/configuration.yaml)
+[Example of UI layout](docs/configs/casting/configuration.yaml)
 
 ## Casting
 
@@ -273,7 +267,7 @@ Currently the Stream Component is a bit too ragged to use to cast Blue Iris vide
       - entity: script.execute_cast_dropdown
 ```
 
-[Example of configuration output](https://github.com/elad-bar/ha-blueiris/blob/master/docs/configs/casting/ui-lovelace.yaml)
+[Example of configuration output](docs/configs/casting/ui-lovelace.yaml)
 
 ## Contributors
 
