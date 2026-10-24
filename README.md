@@ -92,6 +92,7 @@ Two collapsed groups below hold the other settings:
 
 | Group               | Fields                                                                                                                       |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Auto reset defaults | On by default, Delay, Attempts, Interval, Set all cameras back to these defaults (admin user only)                          |
 | Connection          | Host, Port, SSL, Username, Password, Clear credentials (workaround to clear the username and password; not stored as option) |
 | Streams and logging | Stream type (H264 / H264 TS / MJPEG), Stream support (requires restart), Log level, Generate configuration files            |
 
@@ -211,16 +212,29 @@ Resets (reconnects) the camera, the same as the Reset Camera service. Created fo
 
 ###### Auto reset (admin user)
 
-Resets a camera automatically when its Problem sensor stays on. Off by default; turn it on per camera.
+Resets a camera automatically when its Problem sensor stays on.
 
-Settings are entities on each camera's device (Configuration section). Changes apply from the next poll (within 30 s) without a reload, and are kept across restarts.
+**Defaults** are set in the options (Configure -> *Auto reset defaults*) and used by every camera you haven't changed on its own:
+
+| Default                | Built-in | Range       |
+| ---------------------- | -------- | ----------- |
+| Auto reset on          | On       | On / Off    |
+| Delay before the first reset | 30 s | 30 - 3600 s |
+| Attempts               | 3        | 1 - 10      |
+| Interval between resets | 90 s    | 30 - 900 s  |
+
+*Set all cameras back to these defaults* in the same section clears every camera's own values (it runs once and is not saved).
+
+**Per camera**, the entities on its device (Configuration section) override the defaults for that camera only, value by value. Changes apply from the next poll (within 30 s) without a reload, and are kept across restarts. A camera keeps following the defaults for any value you haven't changed on it.
+
+Problems are seen on the 30 s poll, so the first reset comes 30 - 60 s after a camera fails with the 30 s delay.
 
 | Entity                                | Default | Range         | Meaning                                    |
 | ------------------------------------- | ------- | ------------- | ------------------------------------------ |
-| `switch.<camera>_auto_reset`          | Off     | -             | Auto reset this camera                     |
-| `number.<camera>_auto_reset_delay`    | 2 min   | 0.5 - 60 min  | How long the problem must last first       |
-| `number.<camera>_auto_reset_attempts` | 3       | 1 - 10        | Resets before giving up                    |
-| `number.<camera>_auto_reset_interval` | 90 s    | 30 - 900 s    | Wait after each reset before the next one  |
+| `switch.<camera>_auto_reset`          | default | -             | Auto reset this camera                     |
+| `number.<camera>_auto_reset_delay`    | default | 30 - 3600 s   | How long the problem must last first       |
+| `number.<camera>_auto_reset_attempts` | default | 1 - 10        | Resets before giving up                    |
+| `number.<camera>_auto_reset_interval` | default | 30 - 900 s    | Wait after each reset before the next one  |
 
 On the server device:
 

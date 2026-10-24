@@ -216,23 +216,35 @@ AUTO_RESET_KEY_DELAY = "delay"
 AUTO_RESET_KEY_ATTEMPTS = "attempts"
 AUTO_RESET_KEY_INTERVAL = "interval"
 
+# Built-in defaults; the options flow can change them
 AUTO_RESET_CAMERA_DEFAULTS = {
-    AUTO_RESET_KEY_ENABLED: False,
-    AUTO_RESET_KEY_DELAY: 2.0,  # minutes before the first reset
+    AUTO_RESET_KEY_ENABLED: True,
+    AUTO_RESET_KEY_DELAY: 30,  # seconds the problem must last first
     AUTO_RESET_KEY_ATTEMPTS: 3,
     AUTO_RESET_KEY_INTERVAL: 90,  # seconds between resets
 }
 
+# Options keys holding the defaults
+CONF_AUTO_RESET_DEFAULTS = {
+    AUTO_RESET_KEY_ENABLED: "auto_reset_default_enabled",
+    AUTO_RESET_KEY_DELAY: "auto_reset_default_delay",
+    AUTO_RESET_KEY_ATTEMPTS: "auto_reset_default_attempts",
+    AUTO_RESET_KEY_INTERVAL: "auto_reset_default_interval",
+}
+# Action, not stored: clear every camera's own values
+CONF_AUTO_RESET_APPLY_DEFAULTS = "auto_reset_apply_defaults"
+OPTION_SECTION_AUTO_RESET = "auto_reset"
+
 # key: (min, max, step)
 AUTO_RESET_LIMITS = {
-    AUTO_RESET_KEY_DELAY: (0.5, 60, 0.5),
+    AUTO_RESET_KEY_DELAY: (30, 3600, 10),
     AUTO_RESET_KEY_ATTEMPTS: (1, 10, 1),
     AUTO_RESET_KEY_INTERVAL: (30, 900, 10),
 }
 
 # key, entity name suffix, unit, icon
 AUTO_RESET_NUMBERS = [
-    (AUTO_RESET_KEY_DELAY, "Delay", "min", "mdi:timer-sand"),
+    (AUTO_RESET_KEY_DELAY, "Delay", "s", "mdi:timer-sand"),
     (AUTO_RESET_KEY_ATTEMPTS, "Attempts", None, "mdi:counter"),
     (AUTO_RESET_KEY_INTERVAL, "Interval", "s", "mdi:timer-refresh-outline"),
 ]

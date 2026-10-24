@@ -10,6 +10,23 @@ from .password_manager import PasswordManager
 _LOGGER = logging.getLogger(__name__)
 
 
+def clean_auto_reset_values(values: dict, base: dict) -> dict:
+    """Return base updated with the valid entries of values, clamped."""
+    result = dict(base)
+
+    enabled = values.get(AUTO_RESET_KEY_ENABLED)
+    if isinstance(enabled, bool):
+        result[AUTO_RESET_KEY_ENABLED] = enabled
+
+    for key, (minimum, maximum, _step) in AUTO_RESET_LIMITS.items():
+        value = values.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            value = min(max(value, minimum), maximum)
+            result[key] = int(round(value)) if float(value).is_integer() else value
+
+    return result
+
+
 class ConfigManager:
     data: ConfigData
     config_entry: ConfigEntry
@@ -54,6 +71,15 @@ class ConfigManager:
         result.stream_type = options.get(CONF_STREAM_TYPE, DEFAULT_STREAM_TYPE)
 
         result.support_stream = options.get(CONF_SUPPORT_STREAM, False)
+
+        result.auto_reset_defaults = clean_auto_reset_values(
+            {
+                key: options.get(option_key)
+                for key, option_key in CONF_AUTO_RESET_DEFAULTS.items()
+                if option_key in options
+            },
+            AUTO_RESET_CAMERA_DEFAULTS,
+        )
 
         self.config_entry = config_entry
         self.data = result

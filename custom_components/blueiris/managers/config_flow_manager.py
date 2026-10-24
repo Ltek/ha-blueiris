@@ -9,6 +9,10 @@ from homeassistant.components.stream.const import DOMAIN as DOMAIN_STREAM
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers.selector import (
+    BooleanSelector,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
@@ -293,7 +297,45 @@ class ConfigFlowManager:
             vol.Schema(general_fields), {"collapsed": True}
         )
 
+        # Auto reset needs admin rights, like the reset itself
+        ha = self._get_ha(self._config_entry.entry_id)
+        if ha.api.data.get("admin", False):
+            fields[vol.Required(OPTION_SECTION_AUTO_RESET)] = section(
+                vol.Schema(self._get_auto_reset_fields(config_data)),
+                {"collapsed": True},
+            )
+
         return vol.Schema(fields)
+
+    @staticmethod
+    def _get_auto_reset_fields(config_data: ConfigData) -> dict:
+        defaults = config_data.auto_reset_defaults
+        fields = {
+            vol.Optional(
+                CONF_AUTO_RESET_DEFAULTS[AUTO_RESET_KEY_ENABLED],
+                default=defaults[AUTO_RESET_KEY_ENABLED],
+            ): BooleanSelector(),
+        }
+
+        for key, _label, unit, _icon in AUTO_RESET_NUMBERS:
+            minimum, maximum, step = AUTO_RESET_LIMITS[key]
+            fields[
+                vol.Optional(CONF_AUTO_RESET_DEFAULTS[key], default=defaults[key])
+            ] = NumberSelector(
+                NumberSelectorConfig(
+                    min=minimum,
+                    max=maximum,
+                    step=step,
+                    mode=NumberSelectorMode.BOX,
+                    **({} if unit is None else {"unit_of_measurement": unit}),
+                )
+            )
+
+        fields[
+            vol.Optional(CONF_AUTO_RESET_APPLY_DEFAULTS, default=False)
+        ] = BooleanSelector()
+
+        return fields
 
     @staticmethod
     def get_options_items_schema(
@@ -346,8 +388,18 @@ class ConfigFlowManager:
         result = {}
 
         for key, value in main_input.items():
-            if key in (OPTION_SECTION_CONNECTION, OPTION_SECTION_GENERAL):
+            if key in (
+                OPTION_SECTION_CONNECTION,
+                OPTION_SECTION_GENERAL,
+                OPTION_SECTION_AUTO_RESET,
+            ):
                 result.update(value)
+
+        # Number selectors return floats; keep whole numbers as int
+        for key in (AUTO_RESET_KEY_ATTEMPTS, AUTO_RESET_KEY_INTERVAL):
+            option_key = CONF_AUTO_RESET_DEFAULTS[key]
+            if isinstance(result.get(option_key), float):
+                result[option_key] = int(round(result[option_key]))
 
         items_input = items_input or {}
 

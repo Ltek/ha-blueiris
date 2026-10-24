@@ -23,6 +23,7 @@ class ConfigData:
     allowed_problem_sensor: list
     stream_type: str
     support_stream: bool
+    auto_reset_defaults: dict
 
     def __init__(self):
         self.name = DEFAULT_NAME
@@ -35,6 +36,7 @@ class ConfigData:
         self.log_level = LOG_LEVEL_DEFAULT
         self.stream_type = DEFAULT_STREAM_TYPE
         self.support_stream = False
+        self.auto_reset_defaults = dict(AUTO_RESET_CAMERA_DEFAULTS)
 
         self.allowed_camera = []
         self.allowed_profile = []

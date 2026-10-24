@@ -21,6 +21,7 @@ from homeassistant.util import dt as dt_util
 
 from ..api.blue_iris_api import BlueIrisCommandError
 from ..helpers.const import *
+from .configuration_manager import clean_auto_reset_values
 from . import entity_manager as entity_manager_module
 
 _LOGGER = logging.getLogger(__name__)
@@ -76,17 +77,8 @@ class AutoResetManager:
 
     @staticmethod
     def _clean_camera_settings(values: dict) -> dict[str, Any]:
-        result = dict(AUTO_RESET_CAMERA_DEFAULTS)
-
-        if isinstance(values.get(AUTO_RESET_KEY_ENABLED), bool):
-            result[AUTO_RESET_KEY_ENABLED] = values[AUTO_RESET_KEY_ENABLED]
-
-        for key, (minimum, maximum, _step) in AUTO_RESET_LIMITS.items():
-            value = values.get(key)
-            if isinstance(value, (int, float)) and not isinstance(value, bool):
-                result[key] = min(max(value, minimum), maximum)
-
-        return result
+        """Keep only valid per-camera overrides."""
+        return clean_auto_reset_values(values, {})
 
     @property
     def enabled(self) -> bool:
@@ -100,16 +92,32 @@ class AutoResetManager:
         self._settings[key] = bool(value)
         self._save()
 
+    @property
+    def defaults(self) -> dict[str, Any]:
+        config_data = self._ha.config_data
+        if config_data is None:
+            return dict(AUTO_RESET_CAMERA_DEFAULTS)
+
+        return dict(config_data.auto_reset_defaults)
+
     def camera_settings(self, camera_id: str) -> dict[str, Any]:
-        stored = self._settings[AUTO_RESET_KEY_CAMERAS].get(camera_id)
-        return dict(stored) if stored is not None else dict(AUTO_RESET_CAMERA_DEFAULTS)
+        """Defaults from the options, with this camera's own values on top."""
+        settings = self.defaults
+        settings.update(self._settings[AUTO_RESET_KEY_CAMERAS].get(camera_id, {}))
+
+        return settings
 
     def set_camera_value(self, camera_id: str, key: str, value):
-        settings = self.camera_settings(camera_id)
-        settings[key] = value
-        self._settings[AUTO_RESET_KEY_CAMERAS][camera_id] = self._clean_camera_settings(
-            settings
-        )
+        cameras = self._settings[AUTO_RESET_KEY_CAMERAS]
+        overrides = dict(cameras.get(camera_id, {}))
+        overrides[key] = value
+        cameras[camera_id] = self._clean_camera_settings(overrides)
+        self._save()
+
+    def reset_cameras_to_defaults(self):
+        """Forget every camera's own values so all follow the defaults."""
+        _LOGGER.info("Auto reset: all cameras set back to the defaults")
+        self._settings[AUTO_RESET_KEY_CAMERAS] = {}
         self._save()
 
     # ---- runtime --------------------------------------------------------
@@ -186,7 +194,7 @@ class AutoResetManager:
         if since is None:
             return
 
-        delay = timedelta(minutes=settings[AUTO_RESET_KEY_DELAY])
+        delay = timedelta(seconds=settings[AUTO_RESET_KEY_DELAY])
         interval = timedelta(seconds=settings[AUTO_RESET_KEY_INTERVAL])
         max_attempts = int(settings[AUTO_RESET_KEY_ATTEMPTS])
 
