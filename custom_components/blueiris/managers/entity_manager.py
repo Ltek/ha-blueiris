@@ -12,6 +12,7 @@ from homeassistant.const import CONF_AUTHENTICATION
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_registry import EntityRegistry
+from homeassistant.util import slugify
 
 from ..api.blue_iris_api import BlueIrisApi
 from ..helpers.const import *
@@ -283,6 +284,9 @@ class EntityManager:
                         )
 
                         if entity_id is not None:
+                            entity_id = self._fix_device_prefixed_entity_id(
+                                domain, entity, entity_id
+                            )
                             entity_component.entity_id = entity_id
 
                             state = self.hass.states.get(entity_id)
@@ -301,6 +305,14 @@ class EntityManager:
                                 if entity_item is None or not entity_item.disabled:
                                     entities_to_add.append(entity_component)
                         else:
+                            # Suggest the ID from the entity's own name, which
+                            # already contains the integration and camera name.
+                            # Otherwise newer HA versions prefix the device
+                            # name as well, giving e.g.
+                            # binary_sensor.bi5_driveway_driveway_bi5_driveway_problem
+                            entity_component.entity_id = (
+                                f"{domain}.{slugify(entity.name)}"
+                            )
                             entities_to_add.append(entity_component)
 
                         entity.status = ENTITY_STATUS_READY
@@ -326,6 +338,36 @@ class EntityManager:
 
         except Exception as ex:
             self.log_exception(ex, f"Failed to update, step: {step}")
+
+    def _fix_device_prefixed_entity_id(
+        self, domain, entity: EntityData, entity_id: str
+    ) -> str:
+        """Rename an entity ID that HA built as device name + entity name.
+
+        Only an ID that is exactly that doubled form is renamed, so IDs the
+        user chose are never touched.
+        """
+        device_name = self.device_manager.get(entity.device_name).get("name")
+
+        if not device_name:
+            return entity_id
+
+        doubled = f"{domain}.{slugify(f'{device_name} {entity.name}')}"
+        wanted = f"{domain}.{slugify(entity.name)}"
+
+        if entity_id != doubled or entity_id == wanted:
+            return entity_id
+
+        if self.entity_registry.async_is_registered(wanted) or self.hass.states.get(
+            wanted
+        ):
+            _LOGGER.debug(f"Not renaming {entity_id}, {wanted} is already in use")
+            return entity_id
+
+        _LOGGER.info(f"Renaming {entity_id} to {wanted}")
+        self.entity_registry.async_update_entity(entity_id, new_entity_id=wanted)
+
+        return wanted
 
     def get_profile_switch(
         self, profile_id, profile_name, system_device_name
