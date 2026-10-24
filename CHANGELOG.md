@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.27
+
+- Fix entity IDs on newer Home Assistant versions, which built new entity IDs from the device name plus the entity name (e.g. `binary_sensor.bi5_driveway_84_driveway_bi5_driveway_84_problem`). New entities now get `binary_sensor.bi5_driveway_84_problem`, and entities already created with the doubled ID are renamed automatically. IDs you changed yourself are left alone
+
 ## 1.0.26
 
 - Add Problem binary sensor per camera: on for no signal, offline or stalled (< 1 FPS), with reason and since; unavailable while the server is not connected and for 5 minutes after Blue Iris starts. Disabled and paused cameras are ignored. New "Problem sensors" section in the options
