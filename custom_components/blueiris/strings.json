@@ -61,6 +61,7 @@
             "name": "Auto reset defaults",
             "description": "Used by every camera that has not been changed on its own device page. Changing a camera's Auto Reset entities overrides these for that camera.",
             "data": {
+              "auto_reset_notifications": "Persistent notifications",
               "auto_reset_default_enabled": "Auto reset on by default",
               "auto_reset_default_delay": "Delay before the first reset",
               "auto_reset_default_attempts": "Attempts",
@@ -68,7 +69,8 @@
               "auto_reset_apply_defaults": "Set all cameras back to these defaults"
             },
             "data_description": {
-              "auto_reset_apply_defaults": "Clears every camera's own auto reset values. Not saved; runs once when you submit."
+              "auto_reset_apply_defaults": "Clears every camera's own auto reset values. Not saved; runs once when you submit.",
+              "auto_reset_notifications": "One notification per camera with the problem and the outcome of the resets. Same as the server's Auto Reset Notifications switch."
             }
           }
         }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.29
+
+- Add *Persistent notifications* on / off to the options (Auto reset defaults); same setting as the server's Auto Reset Notifications switch
+
 ## 1.0.28
 
 - Add auto reset: resets a camera when its Problem sensor stays on. Per camera a switch and Delay / Attempts / Interval numbers; on the server a master switch and a notifications switch. Changes apply live without a reload and are stored across restarts
