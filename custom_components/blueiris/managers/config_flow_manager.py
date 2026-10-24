@@ -211,6 +211,16 @@ class ConfigFlowManager:
             ),
         ]
 
+        for key, option_key in CONF_CAMERA_CONTROLS.items():
+            categories.append(
+                (
+                    option_key,
+                    config_data.camera_controls[key],
+                    supported_physical_camera,
+                    is_admin,
+                )
+            )
+
         result = []
         for name, checked, items, enabled in categories:
             if checked is not None:
@@ -480,13 +490,17 @@ class ConfigFlowManager:
             name = category["name"]
 
             if not category["enabled"]:
-                if category["checked"] is not None:
+                if category["checked"] is not None or name in DEFAULT_OFF_OPTION_KEYS:
                     result[name] = category["checked"]
                 continue
 
             mode = flat.get(name, OPTION_MODE_ALL)
 
-            if mode == OPTION_MODE_NONE:
+            if mode == OPTION_MODE_ALL and name in DEFAULT_OFF_OPTION_KEYS:
+                # Leaving it out would mean the default, which is None
+                result[name] = None
+
+            elif mode == OPTION_MODE_NONE:
                 result[name] = []
 
             elif mode == OPTION_MODE_CUSTOM:

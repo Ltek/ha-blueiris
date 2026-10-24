@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current build: **v2026.10.24.32** · full history in [CHANGELOG.md](CHANGELOG.md)
+Current build: **v2026.10.24.33** · full history in [CHANGELOG.md](CHANGELOG.md)
 
 ## Features
 
@@ -14,11 +14,12 @@ Current build: **v2026.10.24.32** · full history in [CHANGELOG.md](CHANGELOG.md
 - **Streams**: H264 (HLS), H264 TS or MJPEG, optionally through the Home Assistant stream component
 - **Problem binary sensor** per camera: on when Blue Iris reports no signal, offline or a stalled stream
 - **Reset button** per camera
+- **Camera controls** per camera: Enabled, Pause, Manual Recording, Snapshot to Database; optional Motion Detection and Reboot
 - **Auto reset** per camera: resets cameras whose Problem sensor stays on, with per-camera delay / attempts / interval you can change live
 - **Binary sensors** per camera from MQTT: Motion, Audio, Connectivity, DIO, External, plus a server-level Alerts sensor
 - **Sensors** for the server: Connection Health, Uptime, CPU, Memory, free space per drive, Warnings, Connections
 - **Switches** for Blue Iris profiles and schedules (admin user required)
-- **Services**: Trigger Camera, Move to Preset, Reset Camera, Current Camera Snapshot
+- **Services**: Trigger Camera, Move to Preset, Reset Camera, Snapshot to Database, Current Camera Snapshot
 - **Log Level** select on the server device to see and change the log level live
 - **Diagnostics** download for bug reports
 - SSL with self-signed certificates
@@ -79,6 +80,7 @@ The options are two pages.
 
 | Section              | Items                                    | Shown when                     |
 | -------------------- | ---------------------------------------- | ------------------------------ |
+| Camera controls      | One choice per control (see Camera controls); cameras, not groups | User has admin rights |
 | Camera components    | All cameras, groups and system cameras   | Always                         |
 | Problem sensors      | Cameras (not groups or system cameras)   | Always                         |
 | Motion sensors       | Non-system cameras                       | MQTT integration is set up     |
@@ -281,6 +283,21 @@ actions:
 
 Blue Iris has its own per-camera Watchdog (camera properties) for signal loss. If it is on, give it a shorter timeout than the auto reset delay, or turn one of them off for that camera.
 
+###### Camera controls (admin user)
+
+Per camera (not groups or system cameras), on its device page. Choose which cameras get each control in Configure -> Camera controls.
+
+| Entity                                   | Default | What it does                                                              |
+| ---------------------------------------- | ------- | ------------------------------------------------------------------------- |
+| `switch.<camera>_enabled`                | All     | Enables / disables the camera in Blue Iris (Configuration)                |
+| `select.<camera>_pause`                  | All     | Off, 30 s ... 24 h, Indefinitely; attributes `remaining` (s) and `until`. Shows unknown while a timed pause set elsewhere runs |
+| `switch.<camera>_manual_recording`       | All     | Starts / stops manual recording                                           |
+| `button.<camera>_snapshot_to_database`   | All     | Saves a snapshot into Blue Iris' clips database (its timeline / UI3), not a file in Home Assistant |
+| `switch.<camera>_motion_detection`       | None    | Motion detection for the camera's active profile; read every 5 minutes (Configuration) |
+| `button.<camera>_reboot`                 | None    | Reboots the camera itself; only for cameras that support it through Blue Iris (Configuration) |
+
+Changes are sent to Blue Iris at once and read back straight away. Errors from Blue Iris show as an error on the action, with Blue Iris' reason.
+
 ###### Camera
 
 State: Idle
@@ -358,6 +375,8 @@ Trigger Camera: Provides the ability to manually trigger a camera or camera grou
 Move to Preset: Provides the ability to move a camera to a specified preset
 
 Reset Camera: Resets (reconnects) a single camera, the same as Blue Iris' Reset command. The stream drops for a few seconds. Requires the integration's Blue Iris user to be an admin; camera groups are rejected
+
+Snapshot to Database: Saves a snapshot into Blue Iris' own clips database, same as the camera's Snapshot to Database button. Not for groups
 
 Current Camera Snapshot: Saves the camera's current still image to `media/blueiris/` (file name optional, default `<camera id>_current.jpg`) and returns `saved_path` and `local_snapshot_url` (`/media/local/blueiris/...`) as the service response, e.g. for a notification image:
 

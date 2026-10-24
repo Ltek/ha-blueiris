@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import logging
 import re
 import sys
@@ -138,6 +138,8 @@ class EntityManager:
         self.problem_since = {}
         self.last_problem = {}
         self.last_problem_since = {}
+        # camera id -> last Pause choice, to show a timed pause by its name
+        self.pause_choice = {}
 
     @property
     def entity_registry(self) -> EntityRegistry:
@@ -282,6 +284,7 @@ class EntityManager:
             self.generate_camera_problem_sensor(camera)
             self.generate_camera_reset_button(camera, is_admin)
             self.generate_camera_auto_reset_entities(camera, is_admin)
+            self.generate_camera_controls(camera, is_admin)
             current_mqtt_binary_sensors = self.generate_camera_binary_sensors(camera)
 
             mqtt_binary_sensors.extend(current_mqtt_binary_sensors)
@@ -727,6 +730,73 @@ class EntityManager:
             self.set_entity(DOMAIN_SELECT, name, entity)
         except Exception as ex:
             self.log_exception(ex, "Failed to generate log level select")
+
+    def get_pause_option(self, camera: CameraData) -> Optional[str]:
+        pause = camera.data.get("pause", 0)
+
+        if not isinstance(pause, (int, float)) or pause == 0:
+            self.pause_choice.pop(camera.id, None)
+            return PAUSE_OFF
+
+        if pause < 0:
+            return PAUSE_INDEFINITELY
+
+        # A timed pause: the choice made here, if it was made here
+        return self.pause_choice.get(camera.id)
+
+    def generate_camera_controls(self, camera: CameraData, is_admin):
+        try:
+            # camconfig needs admin rights; groups have no settings of their own
+            if not is_admin or not camera.is_physical:
+                return
+
+            device_name = self.device_manager.get_camera_device_name(camera)
+            data = camera.data
+
+            for key, (label, domain, icon, is_config) in CAMERA_CONTROL_ENTITIES.items():
+                allowed = self.config_data.camera_controls[key]
+
+                if allowed is not None and camera.id not in allowed:
+                    continue
+
+                attributes = {}
+
+                if key == CAMERA_CONTROL_ENABLE:
+                    state = bool(data.get("isEnabled", True))
+                elif key == CAMERA_CONTROL_MANREC:
+                    state = bool(data.get("isManRec", False))
+                elif key == CAMERA_CONTROL_MOTION:
+                    state = self.api.motion_states.get(camera.id)
+                elif key == CAMERA_CONTROL_PAUSE:
+                    state = self.get_pause_option(camera)
+                    remaining = data.get("pause", 0)
+                    seconds = remaining if isinstance(remaining, (int, float)) else 0
+                    attributes = {
+                        "paused": bool(data.get("isPaused", seconds != 0)),
+                        "remaining": seconds if seconds > 0 else None,
+                        "until": (utcnow() + timedelta(seconds=seconds)).isoformat()
+                        if seconds > 0
+                        else None,
+                    }
+                else:
+                    state = None
+
+                name = f"{self.integration_title} {camera.name} {label}"
+                details = {
+                    CAMERA_CONTROL_KEY: key,
+                    ENTITY_CONFIG_CATEGORY: is_config,
+                }
+                if key == CAMERA_CONTROL_REBOOT:
+                    details[ENTITY_BUTTON_DEVICE_CLASS] = ButtonDeviceClass.RESTART
+
+                entity = self._config_entity(
+                    domain, name, camera.id, device_name, CAMERA_CONTROL, state, icon, details
+                )
+                entity.attributes.update(attributes)
+
+                self.set_entity(domain, name, entity)
+        except Exception as ex:
+            self.log_exception(ex, f"Failed to generate camera controls for {camera}")
 
     def generate_auto_reset_server_switches(self, system_device_name, is_admin):
         try:

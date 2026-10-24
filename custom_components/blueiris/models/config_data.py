@@ -25,6 +25,7 @@ class ConfigData:
     support_stream: bool
     auto_reset_defaults: dict
     server_sensors: dict
+    camera_controls: dict
 
     def __init__(self):
         self.name = DEFAULT_NAME
@@ -39,6 +40,11 @@ class ConfigData:
         self.support_stream = False
         self.auto_reset_defaults = dict(AUTO_RESET_CAMERA_DEFAULTS)
         self.server_sensors = {key: True for key in CONF_SERVER_SENSORS}
+        # None = all cameras, list = only those
+        self.camera_controls = {
+            key: [] if key in CAMERA_CONTROLS_DEFAULT_OFF else None
+            for key in CONF_CAMERA_CONTROLS
+        }
 
         self.allowed_camera = []
         self.allowed_profile = []

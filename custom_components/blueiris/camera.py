@@ -42,6 +42,7 @@ from .helpers.const import (
     SERVICE_MOVE_TO_PRESET,
     SERVICE_RESET_CAMERA,
     SERVICE_SNAPSHOT_FILENAME,
+    SERVICE_SNAPSHOT_TO_DATABASE,
     SERVICE_TRIGGER_CAMERA,
     SNAPSHOT_MEDIA_FOLDER,
 )
@@ -78,6 +79,11 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         SERVICE_RESET_CAMERA,
         {},
         SERVICE_RESET_CAMERA,
+    )
+    platform.async_register_entity_service(
+        SERVICE_SNAPSHOT_TO_DATABASE,
+        {},
+        SERVICE_SNAPSHOT_TO_DATABASE,
     )
     platform.async_register_entity_service(
         SERVICE_CURRENT_CAMERA_SNAPSHOT,
@@ -248,6 +254,19 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
 
         try:
             await self.api.reset_camera(self.entity.id)
+        except BlueIrisCommandError as ex:
+            _LOGGER.error(str(ex))
+            raise HomeAssistantError(str(ex)) from ex
+
+    async def snapshot_to_database(self):
+        """Save a snapshot into Blue Iris' own clips database."""
+        if self.entity.attributes[BI_CAMERA_ATTR_GROUP_CAMERAS] != NOT_AVAILABLE:
+            raise ServiceValidationError(
+                f"{self.name} is a camera group; snapshot_to_database needs a single camera"
+            )
+
+        try:
+            await self.api.snapshot_to_database(self.entity.id)
         except BlueIrisCommandError as ex:
             _LOGGER.error(str(ex))
             raise HomeAssistantError(str(ex)) from ex

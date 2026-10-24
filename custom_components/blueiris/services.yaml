@@ -16,6 +16,16 @@ reset_camera:
       integration: blueiris
       domain: camera
 
+snapshot_to_database:
+  name: Snapshot to Database
+  description: >-
+    Saves a snapshot of the camera into Blue Iris' own clips database, where
+    it shows on Blue Iris' timeline and follows its retention rules.
+  target:
+    entity:
+      integration: blueiris
+      domain: camera
+
 current_camera_snapshot:
   name: Current Camera Snapshot
   description: >-

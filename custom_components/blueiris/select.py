@@ -6,6 +6,9 @@ import logging
 from homeassistant.components.select import SelectEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+
+from .api.blue_iris_api import BlueIrisCommandError
 
 from .helpers.log_level import set_log_level
 from .helpers.const import *
@@ -33,10 +36,51 @@ async def async_unload_entry(_hass, config_entry):
 
 
 def get_select(hass: HomeAssistant, host: str, entity: EntityData):
-    select = BlueIrisLogLevelSelect()
+    if entity.type == CAMERA_CONTROL:
+        select = BlueIrisPauseSelect()
+    else:
+        select = BlueIrisLogLevelSelect()
+
     select.initialize(hass, host, entity, CURRENT_DOMAIN)
 
     return select
+
+
+class BlueIrisPauseSelect(SelectEntity, BlueIrisEntity):
+    """Pause a camera (recording, alerts) for a while, or resume it.
+
+    Unknown while a timed pause set elsewhere is running; the remaining
+    time is in the attributes.
+    """
+
+    _attr_options = list(PAUSE_OPTIONS)
+
+    @property
+    def current_option(self):
+        return self.entity.state
+
+    @property
+    def icon(self):
+        return self.entity.icon
+
+    async def async_select_option(self, option: str) -> None:
+        camera_id = self.entity.id
+
+        try:
+            # Timed values add to a running pause, so clear it first
+            await self.api.set_camera_value(camera_id, "pause", 0)
+            if PAUSE_OPTIONS[option] != 0:
+                await self.api.set_camera_value(camera_id, "pause", PAUSE_OPTIONS[option])
+        except BlueIrisCommandError as ex:
+            _LOGGER.error(str(ex))
+            raise HomeAssistantError(str(ex)) from ex
+
+        if option in (PAUSE_OFF, PAUSE_INDEFINITELY):
+            self.entity_manager.pause_choice.pop(camera_id, None)
+        else:
+            self.entity_manager.pause_choice[camera_id] = option
+
+        await self.ha.async_update(None)
 
 
 class BlueIrisLogLevelSelect(SelectEntity, BlueIrisEntity):

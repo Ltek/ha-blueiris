@@ -72,6 +72,13 @@ class ConfigManager:
 
         result.support_stream = options.get(CONF_SUPPORT_STREAM, False)
 
+        result.camera_controls = {
+            key: options.get(option_key)
+            if option_key in options
+            else ([] if key in CAMERA_CONTROLS_DEFAULT_OFF else None)
+            for key, option_key in CONF_CAMERA_CONTROLS.items()
+        }
+
         result.server_sensors = {
             key: bool(options.get(option_key, True))
             for key, option_key in CONF_SERVER_SENSORS.items()

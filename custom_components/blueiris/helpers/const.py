@@ -109,6 +109,7 @@ SERVICE_SET_LEVEL = "set_level"
 SERVICE_TRIGGER_CAMERA = "trigger_camera"
 SERVICE_MOVE_TO_PRESET = "move_to_preset"
 SERVICE_RESET_CAMERA = "reset_camera"
+SERVICE_SNAPSHOT_TO_DATABASE = "snapshot_to_database"
 SERVICE_CURRENT_CAMERA_SNAPSHOT = "current_camera_snapshot"
 SERVICE_SNAPSHOT_FILENAME = "filename"
 SNAPSHOT_MEDIA_FOLDER = DOMAIN
@@ -195,6 +196,7 @@ ENTITY_SENSOR_CATEGORY = "entity_category"
 ENTITY_SENSOR_STATE_CLASS = "state_class"
 ENTITY_AVAILABLE = "available"
 ENTITY_BUTTON_DEVICE_CLASS = "button_device_class"
+ENTITY_CONFIG_CATEGORY = "config_category"
 ENTITY_NUMBER_MIN = "native_min_value"
 ENTITY_NUMBER_MAX = "native_max_value"
 ENTITY_NUMBER_STEP = "native_step"
@@ -441,6 +443,63 @@ OPTION_SECTION_CAMERAS = "cameras"
 OPTION_SECTION_MQTT_SENSORS = "mqtt_sensors"
 OPTION_SECTION_SWITCHES = "profiles_schedules"
 OPTION_SECTION_SERVER = "server"
+OPTION_SECTION_CAMERA_CONTROLS = "camera_controls"
+
+# Camera controls (admin user): key -> options key
+CAMERA_CONTROL_ENABLE = "enable"
+CAMERA_CONTROL_PAUSE = "pause"
+CAMERA_CONTROL_MANREC = "manrec"
+CAMERA_CONTROL_SNAPSHOT = "snapshot"
+CAMERA_CONTROL_MOTION = "motion"
+CAMERA_CONTROL_REBOOT = "reboot"
+CONF_CAMERA_CONTROLS = {
+    CAMERA_CONTROL_ENABLE: "allowed_camera_enable",
+    CAMERA_CONTROL_PAUSE: "allowed_camera_pause",
+    CAMERA_CONTROL_MANREC: "allowed_camera_manrec",
+    CAMERA_CONTROL_SNAPSHOT: "allowed_camera_snapshot",
+    CAMERA_CONTROL_MOTION: "allowed_camera_motion",
+    CAMERA_CONTROL_REBOOT: "allowed_camera_reboot",
+}
+# None by default (opt-in); All is then stored explicitly as null
+CAMERA_CONTROLS_DEFAULT_OFF = {CAMERA_CONTROL_MOTION, CAMERA_CONTROL_REBOOT}
+DEFAULT_OFF_OPTION_KEYS = {CONF_CAMERA_CONTROLS[k] for k in CAMERA_CONTROLS_DEFAULT_OFF}
+
+CAMERA_CONTROL = "CameraControl"
+CAMERA_CONTROL_KEY = "camera_control"
+
+# key: (entity name suffix, domain, icon, config category)
+CAMERA_CONTROL_ENTITIES = {
+    CAMERA_CONTROL_ENABLE: ("Enabled", "switch", "mdi:cctv", True),
+    CAMERA_CONTROL_PAUSE: ("Pause", "select", "mdi:pause-circle-outline", False),
+    CAMERA_CONTROL_MANREC: ("Manual Recording", "switch", "mdi:record-rec", False),
+    CAMERA_CONTROL_SNAPSHOT: (
+        "Snapshot to Database",
+        "button",
+        "mdi:camera-plus-outline",
+        False,
+    ),
+    CAMERA_CONTROL_MOTION: ("Motion Detection", "switch", "mdi:motion-sensor", True),
+    CAMERA_CONTROL_REBOOT: ("Reboot", "button", "mdi:restart", True),
+}
+MOTION_REFRESH_INTERVAL = timedelta(minutes=5)
+
+# Pause choices -> Blue Iris pause value (values other than 0 / -1 ADD time)
+PAUSE_OFF = "Off"
+PAUSE_INDEFINITELY = "Indefinitely"
+PAUSE_OPTIONS = {
+    PAUSE_OFF: 0,
+    "30 seconds": 1,
+    "5 minutes": 2,
+    "15 minutes": 10,
+    "30 minutes": 3,
+    "1 hour": 4,
+    "2 hours": 5,
+    "3 hours": 6,
+    "5 hours": 7,
+    "10 hours": 8,
+    "24 hours": 9,
+    PAUSE_INDEFINITELY: -1,
+}
 
 # Page 1 section of each All / None / Choose category; collapsed or not
 CATEGORY_SECTIONS = {
@@ -453,9 +512,11 @@ CATEGORY_SECTIONS = {
     CONF_ALLOWED_EXTERNAL_SENSOR: OPTION_SECTION_MQTT_SENSORS,
     CONF_ALLOWED_PROFILE: OPTION_SECTION_SWITCHES,
     CONF_ALLOWED_SCHEDULE: OPTION_SECTION_SWITCHES,
+    **{key: OPTION_SECTION_CAMERA_CONTROLS for key in CONF_CAMERA_CONTROLS.values()},
 }
 SECTION_COLLAPSED = {
     OPTION_SECTION_CAMERAS: False,
+    OPTION_SECTION_CAMERA_CONTROLS: True,
     OPTION_SECTION_MQTT_SENSORS: True,
     OPTION_SECTION_SWITCHES: True,
 }

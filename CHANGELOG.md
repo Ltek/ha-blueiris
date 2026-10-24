@@ -1,5 +1,11 @@
 # Changelog
 
+## v2026.10.24.33
+
+- Add camera controls (admin user), chosen per camera in Configure -> Camera controls: Enabled switch, Pause select (Off, 30 s ... 24 h, Indefinitely), Manual Recording switch and Snapshot to Database button on by default; Motion Detection switch and Reboot button off by default
+- Add `blueiris.snapshot_to_database` service. Sends the JSON `snapshot` command and falls back to the documented `/admin?camera=x&snapshot`
+- Motion detection state is read from Blue Iris every 5 minutes, only when the Motion Detection switch is in use
+
 ## v2026.10.24.32
 
 - Versions now follow `YYYY.MM.DD.BUILD` (build date + running build number); this is build 32, after 1.0.31

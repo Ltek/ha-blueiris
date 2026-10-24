@@ -8,6 +8,9 @@ import logging
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+
+from .api.blue_iris_api import BlueIrisCommandError
 
 from .helpers.const import *
 from .models.base_entity import BlueIrisEntity, async_setup_base_entry
@@ -34,6 +37,13 @@ async def async_unload_entry(_hass, config_entry):
 
 
 def get_switch(hass: HomeAssistant, host: str, entity: EntityData):
+    if entity.type == CAMERA_CONTROL:
+        switch = BlueIrisCameraControlSwitch()
+        switch.initialize(hass, host, entity, CURRENT_DOMAIN)
+        if entity.details.get(ENTITY_CONFIG_CATEGORY):
+            switch._attr_entity_category = EntityCategory.CONFIG
+        return switch
+
     if entity.type in (
         AUTO_RESET_SERVER_SWITCH,
         AUTO_RESET_CAMERA_SWITCH,
@@ -46,6 +56,39 @@ def get_switch(hass: HomeAssistant, host: str, entity: EntityData):
     switch.initialize(hass, host, entity, CURRENT_DOMAIN)
 
     return switch
+
+
+class BlueIrisCameraControlSwitch(SwitchEntity, BlueIrisEntity):
+    """Camera Enabled, Manual Recording or Motion Detection."""
+
+    @property
+    def is_on(self):
+        return self.entity.state
+
+    @property
+    def icon(self):
+        return self.entity.icon
+
+    async def async_turn_on(self, **kwargs):
+        await self._async_set(True)
+
+    async def async_turn_off(self, **kwargs):
+        await self._async_set(False)
+
+    async def _async_set(self, value: bool):
+        key = self.entity.details[CAMERA_CONTROL_KEY]
+
+        try:
+            await self.api.set_camera_value(self.entity.id, key, value)
+        except BlueIrisCommandError as ex:
+            _LOGGER.error(str(ex))
+            raise HomeAssistantError(str(ex)) from ex
+
+        if key == CAMERA_CONTROL_MOTION:
+            # Not in camlist; Blue Iris accepted it, so keep it until re-read
+            self.api.motion_states[self.entity.id] = value
+
+        await self.ha.async_update(None)
 
 
 class BlueIrisAutoResetSwitch(SwitchEntity, BlueIrisEntity):
