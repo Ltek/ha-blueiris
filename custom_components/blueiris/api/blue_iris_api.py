@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import json
 import logging
@@ -11,6 +11,13 @@ from aiohttp import ClientSession, ClientTimeout
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
+from ..helpers.const import (
+    CONNECTION_STATE_AUTH_FAILED,
+    CONNECTION_STATE_CONNECTED,
+    CONNECTION_STATE_CONNECTING,
+    CONNECTION_STATE_ERROR,
+    CONNECTION_STATE_UNREACHABLE,
+)
 from ..managers.configuration_manager import ConfigManager
 from ..models.camera_data import CameraData
 
@@ -44,6 +51,13 @@ class BlueIrisApi:
             self.config_manager = config_manager
             self.session_id = None
             self.session = None
+
+            # Connection health, refreshed by every async_update
+            self.last_post_reachable = None
+            self.last_update_success = None
+            self.last_success_time = None
+            self.consecutive_failures = 0
+            self.connection_state = CONNECTION_STATE_CONNECTING
         except Exception as ex:
             exc_type, exc_obj, tb = sys.exc_info()
             _LOGGER.error(f"Failed to load BlueIris API, error: {ex}, line: {tb.tb_lineno}")
@@ -77,6 +91,7 @@ class BlueIrisApi:
                     _LOGGER.debug(f"Status of {self.url}: {response.status}")
                     response.raise_for_status()
                     result = await response.json()
+                    self.last_post_reachable = True
                     _LOGGER.debug(f"Full result of {data}: {result}")
                     self._last_update = datetime.now()
                     return result
@@ -89,6 +104,7 @@ class BlueIrisApi:
                 await asyncio.sleep(RETRY_DELAY)
 
         _LOGGER.error(f"All attempts to POST to {self.url} failed.")
+        self.last_post_reachable = False
         return None
 
     async def async_verified_post(self, data):
@@ -122,8 +138,36 @@ class BlueIrisApi:
 
     async def async_update(self):
         _LOGGER.debug(f"Updating data from BI Server ({self.config_manager.config_entry.title})")
-        await self.load_camera()
-        await self.load_status()
+        camera_loaded = await self.load_camera()
+        status_loaded = await self.load_status()
+
+        self._update_connection_health(camera_loaded and status_loaded)
+
+    def _update_connection_health(self, success: bool):
+        previous_state = self.connection_state
+
+        self.last_update_success = success
+
+        if success:
+            self.consecutive_failures = 0
+            self.last_success_time = datetime.now(timezone.utc)
+            self.connection_state = CONNECTION_STATE_CONNECTED
+
+        else:
+            self.consecutive_failures += 1
+
+            if self.last_post_reachable is False:
+                self.connection_state = CONNECTION_STATE_UNREACHABLE
+            elif not self.is_logged_in:
+                self.connection_state = CONNECTION_STATE_AUTH_FAILED
+            else:
+                self.connection_state = CONNECTION_STATE_ERROR
+
+        if self.connection_state != previous_state:
+            _LOGGER.debug(
+                f"Connection state changed from {previous_state} to {self.connection_state}, "
+                f"consecutive failures: {self.consecutive_failures}"
+            )
 
     async def load_session_id(self):
         _LOGGER.debug("Retrieving session ID")
@@ -161,11 +205,15 @@ class BlueIrisApi:
         if response:
             self.camera_list = [CameraData(cam) for cam in response.get("data", [])]
 
+        return response is not None
+
     async def load_status(self):
         _LOGGER.debug("Retrieving status")
         response = await self.async_verified_post({"cmd": "status", "session": self.session_id})
         if response:
             self.status.update(response.get("data", {}))
+
+        return response is not None
 
     async def set_profile(self, profile_id):
         _LOGGER.debug(f"Setting profile {profile_id}")
