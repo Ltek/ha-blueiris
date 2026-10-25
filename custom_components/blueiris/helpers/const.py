@@ -634,6 +634,22 @@ LOG_LEVEL_SELECT_OPTIONS = [
     LOG_LEVEL_ERROR,
 ]
 LOG_LEVEL_NAME = "Log Level"
+
+# How camera entities build their stream / still-image URL; switched live
+# with the server's Stream Method select and kept across restarts
+STREAM_METHOD_NAME = "Stream Method"
+STREAM_METHOD_ICON = "mdi:video-switch-outline"
+STREAM_METHOD = "StreamMethod"
+KEY_STREAM_METHOD = "stream_method"
+# URL made when the camera entity is created (original behaviour)
+STREAM_METHOD_FIXED = "Fixed URL"
+# URL follows the current Blue Iris session; the running stream is
+# restarted when the session changes (as in kramttocs/ha-blueiris)
+STREAM_METHOD_SESSION = "Follow session"
+# Same, and asks for audio on cameras that have it (audio=1)
+STREAM_METHOD_SESSION_AUDIO = "Follow session + audio"
+STREAM_METHODS = [STREAM_METHOD_FIXED, STREAM_METHOD_SESSION, STREAM_METHOD_SESSION_AUDIO]
+DEFAULT_STREAM_METHOD = STREAM_METHOD_FIXED
 LOG_LEVEL_ICON = "mdi:text-box-search-outline"
 INTEGRATION_LOGGER = f"custom_components.{DOMAIN}"
 

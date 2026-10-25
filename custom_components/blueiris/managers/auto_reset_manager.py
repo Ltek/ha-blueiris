@@ -48,6 +48,7 @@ class AutoResetManager:
             AUTO_RESET_KEY_NOTIFICATIONS: True,
             AUTO_RESET_KEY_CAMERAS: {},
             KEY_PROBLEM_DETECTION_OFF: [],
+            KEY_STREAM_METHOD: DEFAULT_STREAM_METHOD,
         }
 
     async def async_load(self, entry_id: str):
@@ -69,6 +70,9 @@ class AutoResetManager:
                     for cam_id, values in cameras.items()
                     if isinstance(values, dict)
                 }
+
+            if stored.get(KEY_STREAM_METHOD) in STREAM_METHODS:
+                settings[KEY_STREAM_METHOD] = stored[KEY_STREAM_METHOD]
 
             detection_off = stored.get(KEY_PROBLEM_DETECTION_OFF)
             if isinstance(detection_off, list):
@@ -119,6 +123,14 @@ class AutoResetManager:
         overrides = dict(cameras.get(camera_id, {}))
         overrides[key] = value
         cameras[camera_id] = self._clean_camera_settings(overrides)
+        self._save()
+
+    @property
+    def stream_method(self) -> str:
+        return self._settings[KEY_STREAM_METHOD]
+
+    def set_stream_method(self, method: str):
+        self._settings[KEY_STREAM_METHOD] = method
         self._save()
 
     def problem_detection(self, camera_id: str) -> bool:

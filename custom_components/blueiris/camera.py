@@ -29,6 +29,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import dt as dt_util
 
 from .helpers.const import (
+    BI_CAMERA_ATTR_AUDIO_SUPPORT,
     BI_CAMERA_ATTR_GROUP_CAMERAS,
     CONF_CONTENT_TYPE,
     CONF_FRAMERATE,
@@ -45,6 +46,9 @@ from .helpers.const import (
     SERVICE_SNAPSHOT_TO_DATABASE,
     SERVICE_TRIGGER_CAMERA,
     SNAPSHOT_MEDIA_FOLDER,
+    STREAM_METHOD_FIXED,
+    STREAM_METHOD_SESSION_AUDIO,
+    STREAM_VIDEO,
 )
 from .api.blue_iris_api import BlueIrisCommandError
 from .models.base_entity import BlueIrisEntity, async_setup_base_entry
@@ -173,7 +177,49 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
                 f"{self.name} updated from {previous_state} to {self.entity.state}"
             )
 
+        self._apply_stream_source()
+
         super()._immediate_update(previous_state)
+
+    @property
+    def _stream_method(self) -> str:
+        return self.entity_manager.stream_method()
+
+    def _session_url(self, path: str) -> str:
+        return f"{self.api.base_url}/{path}?session={self.api.session_id}"
+
+    def current_stream_source(self) -> Optional[str]:
+        """Stream URL for the selected Stream Method."""
+        method = self._stream_method
+
+        if method == STREAM_METHOD_FIXED or not self._stream_source:
+            return self._stream_source
+
+        video = STREAM_VIDEO.get(self.ha.config_data.stream_type, {})
+        path = f"{video.get('stream_name')}/{self.entity.id}/{video.get('file_name', '')}"
+        url = self._session_url(path)
+
+        has_audio = self.entity.attributes.get(BI_CAMERA_ATTR_AUDIO_SUPPORT) is True
+        if method == STREAM_METHOD_SESSION_AUDIO and has_audio:
+            url = f"{url}&audio=1"
+
+        return url
+
+    def _apply_stream_source(self):
+        """Restart a running stream when its URL should change.
+
+        Follow session: the Blue Iris session changed (new login). Any
+        method: the Stream Method was switched.
+        """
+        stream = self.stream
+        new_source = self.current_stream_source()
+
+        if stream is None or new_source is None or stream.source == new_source:
+            return
+
+        _LOGGER.debug(f"{self.name}: stream source changed ({self._stream_method})")
+        stream.update_source(new_source)
+        self.entity_manager.stream_restarts += 1
 
     async def async_added_to_hass_local(self):
         """Subscribe MQTT events."""
@@ -202,7 +248,10 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
     ) -> Optional[bytes]:
         """Return a still image response from the camera."""
         try:
-            url = self._still_image_url.async_render()
+            if self._stream_method == STREAM_METHOD_FIXED:
+                url = self._still_image_url.async_render()
+            else:
+                url = self._session_url(f"image/{self.entity.id}")
         except TemplateError as err:
             _LOGGER.error("Error parsing template %s: %s", self._still_image_url, err)
             return self._last_image
@@ -228,7 +277,7 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
 
     async def stream_source(self):
         """Return the source of the stream."""
-        return self._stream_source
+        return self.current_stream_source()
 
     async def trigger_camera(self):
         if self.entity.attributes[BI_CAMERA_ATTR_GROUP_CAMERAS] == NOT_AVAILABLE:

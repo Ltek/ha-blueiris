@@ -167,7 +167,8 @@
               "generate-config-files": "Generate configuration files"
             },
             "data_description": {
-              "log_level": "Applied every time Home Assistant starts or the integration reloads. Change it live, until the next restart, with the server's Log Level entity. Default keeps Home Assistant's own logging setup."
+              "log_level": "Applied every time Home Assistant starts or the integration reloads. Change it live, until the next restart, with the server's Log Level entity. Default keeps Home Assistant's own logging setup.",
+              "stream-type": "How the stream URL is kept up to date (fixed, or following the Blue Iris session) is switched live with the server's Stream Method entity."
             }
           },
           "auto_reset": {
