@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current build: **v2026.10.25.40** · full history in [CHANGELOG.md](CHANGELOG.md)
+Current build: **v2026.10.25.41** · full history in [CHANGELOG.md](CHANGELOG.md)
 
 ## Features
 
@@ -24,6 +24,7 @@ Current build: **v2026.10.25.40** · full history in [CHANGELOG.md](CHANGELOG.md
 - **Blue Iris log**: new warnings and errors as `blueiris_log` events and a Last Message sensor
 - **Services**: Trigger Camera, Move to Preset, Reset Camera, Snapshot to Database, Current Camera Snapshot
 - **Log Level** select on the server device to see and change the log level live
+- **HA Streaming** switch on the server device: HA's own stream (HLS / WebRTC) or an MJPEG view from still images, switched live
 - **Stream Method** select on the server device to switch how stream URLs are built, live
 - **Stream monitoring**: `blueiris_stream` events, per-camera stream status and a Stream Health sensor per Stream Method
 - **Reload Integration** button on the server device
@@ -116,6 +117,15 @@ Collapsed groups below hold the other settings:
 Title will be extracted from BlueIris server's configuration, it will be set upon adding the server, and after every Option's change
 
 Note that in case there are 2 integrations with the same integration's title, components will be overwritten by both integrations.
+
+**HA Streaming** (`switch.<server>_ha_streaming`, Configuration section of the server device; only when HA's `stream` integration is loaded, as with `default_config`)
+
+| Switch | What camera live views get                                                                                 |
+| ------ | ---------------------------------------------------------------------------------------------------------- |
+| Off    | An MJPEG view that Home Assistant builds by fetching the camera's still image from Blue Iris over and over (once per frame at the camera's FPS) |
+| On     | Home Assistant's stream: one H264 connection per camera to Blue Iris, played as HLS (or WebRTC when a WebRTC provider such as go2rtc is set up) |
+
+Switches at once for every camera, no restart: cameras change their supported features, and running HA streams are stopped when it is turned off. Open dashboards may need a refresh to pick it up. Kept across restarts; until it is first changed it follows the options' *Support stream component* checkbox. With many cameras on one dashboard, *On* puts far less load on Blue Iris than the MJPEG view. Stream Method and Stream Monitoring only apply while it is on.
 
 **Stream Method** (`select.<server>_stream_method`, Configuration section of the server device)
 
