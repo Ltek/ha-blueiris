@@ -8,7 +8,6 @@ import asyncio
 import logging
 from pathlib import Path
 from typing import Optional
-from urllib.parse import quote
 
 import aiohttp
 import voluptuous as vol
@@ -30,7 +29,6 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import dt as dt_util
 
 from .helpers.const import (
-    BI_CAMERA_ATTR_AUDIO_SUPPORT,
     BI_CAMERA_ATTR_GROUP_CAMERAS,
     CONF_CONTENT_TYPE,
     CONF_FRAMERATE,
@@ -47,12 +45,6 @@ from .helpers.const import (
     SERVICE_SNAPSHOT_TO_DATABASE,
     SERVICE_TRIGGER_CAMERA,
     SNAPSHOT_MEDIA_FOLDER,
-    STREAM_METHOD_FIXED,
-    STREAM_METHOD_LOGIN,
-    STREAM_METHOD_SESSION_AUDIO,
-    STREAM_REASON_METHOD,
-    STREAM_REASON_SESSION,
-    STREAM_VIDEO,
 )
 from .api.blue_iris_api import BlueIrisCommandError
 from .models.base_entity import BlueIrisEntity, async_setup_base_entry
@@ -181,147 +173,16 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
                 f"{self.name} updated from {previous_state} to {self.entity.state}"
             )
 
-        self._apply_stream_source()
-        self._stop_stream_if_streaming_off()
-
         super()._immediate_update(previous_state)
-
-    def _stop_stream_if_streaming_off(self):
-        """HA Streaming switched off: end this camera's running stream."""
-        stream = self.stream
-
-        if stream is None or self.supported_features & CameraEntityFeature.STREAM:
-            return
-
-        _LOGGER.debug(f"{self.name}: HA streaming off, stopping its stream")
-        self.stream = None
-        self.hass.async_create_task(stream.stop())
-
-    @property
-    def _stream_method(self) -> str:
-        return self.entity_manager.stream_method()
-
-    def _session_url(self, path: str) -> str:
-        return f"{self.api.base_url}/{path}?session={self.api.session_id}"
-
-    def _login_url(self, path: str) -> Optional[str]:
-        """http://user:password@host:port/path, or None without a login."""
-        config_data = self.ha.config_data
-        username = config_data.username
-        password = config_data.password_clear_text
-
-        if not username or not password:
-            return None
-
-        scheme, rest = self.api.base_url.split("://", 1)
-        login = f"{quote(username, safe='')}:{quote(password, safe='')}"
-
-        return f"{scheme}://{login}@{rest}/{path}"
-
-    def current_stream_source(self) -> Optional[str]:
-        """Stream URL for the selected Stream Method."""
-        method = self._stream_method
-
-        if method == STREAM_METHOD_FIXED or not self._stream_source:
-            return self._stream_source
-
-        video = STREAM_VIDEO.get(self.ha.config_data.stream_type, {})
-        path = f"{video.get('stream_name')}/{self.entity.id}/{video.get('file_name', '')}"
-
-        if method == STREAM_METHOD_LOGIN:
-            login_url = self._login_url(path)
-            if login_url is not None:
-                return login_url
-            # No username / password configured: nothing to put in the URL
-
-        url = self._session_url(path)
-
-        has_audio = self.entity.attributes.get(BI_CAMERA_ATTR_AUDIO_SUPPORT) is True
-        if method == STREAM_METHOD_SESSION_AUDIO and has_audio:
-            url = f"{url}&audio=1"
-
-        return url
-
-    def _apply_stream_source(self):
-        """Restart a running stream when its URL should change.
-
-        Follow session: the Blue Iris session changed (new login). Any
-        method: the Stream Method was switched.
-        """
-        method = self._stream_method
-        method_changed = method != getattr(self, "_last_method", method)
-        self._last_method = method
-
-        # Fixed URL never touches a running stream, as before Stream Method
-        # existed, except once when switching to it from another method
-        if method == STREAM_METHOD_FIXED and not method_changed:
-            return
-
-        stream = self.stream
-        new_source = self.current_stream_source()
-
-        if stream is None or new_source is None or stream.source == new_source:
-            return
-
-        _LOGGER.debug(f"{self.name}: stream source changed ({method})")
-        stream.update_source(new_source)
-        self.entity_manager.stream_restarts += 1
-
-        if self.ha.stream_monitor is not None:
-            self.ha.stream_monitor.stream_restarted(
-                self, STREAM_REASON_METHOD if method_changed else STREAM_REASON_SESSION
-            )
 
     async def async_added_to_hass_local(self):
         """Subscribe MQTT events."""
         _LOGGER.debug(f"Added new {self.name}")
-        self._last_method = self._stream_method
-        if self.ha.stream_monitor is not None:
-            # Only a reference; nothing runs while monitoring is off
-            self.ha.stream_monitor.register(self)
-
-    async def async_will_remove_from_hass_local(self):
-        if self.ha.stream_monitor is not None:
-            self.ha.stream_monitor.unregister(self)
-
-    def _monitoring(self) -> bool:
-        monitor = None if self.ha is None else self.ha.stream_monitor
-        return monitor is not None and monitor.enabled
-
-    async def async_create_stream(self):
-        """Create the stream; with monitoring on, report a new one."""
-        if not self._monitoring():
-            return await super().async_create_stream()
-
-        previous = self.stream
-        stream = await super().async_create_stream()
-
-        if stream is not None and stream is not previous:
-            self.ha.stream_monitor.stream_opened(self)
-
-        return stream
-
-    @property
-    def extra_state_attributes(self):
-        if not self._monitoring():
-            return self.entity.attributes
-
-        attributes = dict(self.entity.attributes)
-        attributes.update(self.ha.stream_monitor.attributes(self.entity.id))
-
-        return attributes
 
     @property
     def supported_features(self) -> CameraEntityFeature:
-        """Stream when the server's HA Streaming switch is on."""
-        if (
-            getattr(self, "_stream_source", None)
-            and self.entity_manager is not None
-            and self.entity_manager.ha_streaming()
-        ):
-            return CameraEntityFeature.STREAM
-
-        return CameraEntityFeature(0)
+        """Return supported features for this camera."""
+        return self._attr_supported_features
 
     @property
     def frame_interval(self):
@@ -341,13 +202,7 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
     ) -> Optional[bytes]:
         """Return a still image response from the camera."""
         try:
-            if self._stream_method == STREAM_METHOD_FIXED:
-                url = self._still_image_url.async_render()
-            elif self._stream_method == STREAM_METHOD_LOGIN and self._auth is not None:
-                # Basic auth header (self._auth), no session in the URL
-                url = f"{self.api.base_url}/image/{self.entity.id}"
-            else:
-                url = self._session_url(f"image/{self.entity.id}")
+            url = self._still_image_url.async_render()
         except TemplateError as err:
             _LOGGER.error("Error parsing template %s: %s", self._still_image_url, err)
             return self._last_image
@@ -373,7 +228,7 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
 
     async def stream_source(self):
         """Return the source of the stream."""
-        return self.current_stream_source()
+        return self._stream_source
 
     async def trigger_camera(self):
         if self.entity.attributes[BI_CAMERA_ATTR_GROUP_CAMERAS] == NOT_AVAILABLE:

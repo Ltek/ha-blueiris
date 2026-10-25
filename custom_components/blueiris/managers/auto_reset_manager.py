@@ -48,10 +48,6 @@ class AutoResetManager:
             AUTO_RESET_KEY_NOTIFICATIONS: True,
             AUTO_RESET_KEY_CAMERAS: {},
             KEY_PROBLEM_DETECTION_OFF: [],
-            KEY_STREAM_METHOD: DEFAULT_STREAM_METHOD,
-            KEY_STREAM_MONITORING: False,
-            # None: not set yet, use the options' Support stream component
-            KEY_HA_STREAMING: None,
         }
 
     async def async_load(self, entry_id: str):
@@ -73,15 +69,6 @@ class AutoResetManager:
                     for cam_id, values in cameras.items()
                     if isinstance(values, dict)
                 }
-
-            if isinstance(stored.get(KEY_HA_STREAMING), bool):
-                settings[KEY_HA_STREAMING] = stored[KEY_HA_STREAMING]
-
-            if isinstance(stored.get(KEY_STREAM_MONITORING), bool):
-                settings[KEY_STREAM_MONITORING] = stored[KEY_STREAM_MONITORING]
-
-            if stored.get(KEY_STREAM_METHOD) in STREAM_METHODS:
-                settings[KEY_STREAM_METHOD] = stored[KEY_STREAM_METHOD]
 
             detection_off = stored.get(KEY_PROBLEM_DETECTION_OFF)
             if isinstance(detection_off, list):
@@ -132,35 +119,6 @@ class AutoResetManager:
         overrides = dict(cameras.get(camera_id, {}))
         overrides[key] = value
         cameras[camera_id] = self._clean_camera_settings(overrides)
-        self._save()
-
-    @property
-    def stream_method(self) -> str:
-        return self._settings[KEY_STREAM_METHOD]
-
-    @property
-    def ha_streaming(self) -> bool:
-        stored = self._settings[KEY_HA_STREAMING]
-        if stored is not None:
-            return stored
-
-        config_data = self._ha.config_data
-        return bool(config_data is not None and config_data.support_stream)
-
-    def set_ha_streaming(self, enabled: bool):
-        self._settings[KEY_HA_STREAMING] = bool(enabled)
-        self._save()
-
-    @property
-    def stream_monitoring(self) -> bool:
-        return self._settings[KEY_STREAM_MONITORING]
-
-    def set_stream_monitoring(self, enabled: bool):
-        self._settings[KEY_STREAM_MONITORING] = bool(enabled)
-        self._save()
-
-    def set_stream_method(self, method: str):
-        self._settings[KEY_STREAM_METHOD] = method
         self._save()
 
     def problem_detection(self, camera_id: str) -> bool:

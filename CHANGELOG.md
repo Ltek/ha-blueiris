@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.10.25.42
+
+- Rollback: the integration code is back to v2026.10.24.36, the last build that kept streams stable. Builds 37 to 41 (Stream Method, Stream Monitoring, Reload button, HA Streaming switch) are kept on the `archive/v2026.10.25.41` branch and the `v2026.10.25.41` tag, not in this build
+- Entities those builds added (Stream Method, Stream Monitoring, HA Streaming, Stream Health, Reload Integration) are no longer created and show as unavailable; they can be deleted. Streaming follows the options' *Support stream component* checkbox again
+
 ## v2026.10.25.41
 
 - Add HA Streaming switch on the server device: turns Home Assistant's own camera stream (HLS / WebRTC) on or off for all cameras at once, without a restart. Off gives the MJPEG view built from still images. Kept across restarts; starts from the options' *Support stream component* checkbox, which is now labelled as the starting value
