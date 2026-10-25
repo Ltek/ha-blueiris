@@ -50,6 +50,8 @@ class AutoResetManager:
             KEY_PROBLEM_DETECTION_OFF: [],
             KEY_STREAM_METHOD: DEFAULT_STREAM_METHOD,
             KEY_STREAM_MONITORING: False,
+            # None: not set yet, use the options' Support stream component
+            KEY_HA_STREAMING: None,
         }
 
     async def async_load(self, entry_id: str):
@@ -71,6 +73,9 @@ class AutoResetManager:
                     for cam_id, values in cameras.items()
                     if isinstance(values, dict)
                 }
+
+            if isinstance(stored.get(KEY_HA_STREAMING), bool):
+                settings[KEY_HA_STREAMING] = stored[KEY_HA_STREAMING]
 
             if isinstance(stored.get(KEY_STREAM_MONITORING), bool):
                 settings[KEY_STREAM_MONITORING] = stored[KEY_STREAM_MONITORING]
@@ -132,6 +137,19 @@ class AutoResetManager:
     @property
     def stream_method(self) -> str:
         return self._settings[KEY_STREAM_METHOD]
+
+    @property
+    def ha_streaming(self) -> bool:
+        stored = self._settings[KEY_HA_STREAMING]
+        if stored is not None:
+            return stored
+
+        config_data = self._ha.config_data
+        return bool(config_data is not None and config_data.support_stream)
+
+    def set_ha_streaming(self, enabled: bool):
+        self._settings[KEY_HA_STREAMING] = bool(enabled)
+        self._save()
 
     @property
     def stream_monitoring(self) -> bool:

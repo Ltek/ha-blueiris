@@ -1,5 +1,9 @@
 # Changelog
 
+## v2026.10.25.41
+
+- Add HA Streaming switch on the server device: turns Home Assistant's own camera stream (HLS / WebRTC) on or off for all cameras at once, without a restart. Off gives the MJPEG view built from still images. Kept across restarts; starts from the options' *Support stream component* checkbox, which is now labelled as the starting value
+
 ## v2026.10.25.40
 
 - Fixed URL is fully passive again: running streams are never compared or touched while it is selected, only once when switching to it

@@ -182,8 +182,20 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
             )
 
         self._apply_stream_source()
+        self._stop_stream_if_streaming_off()
 
         super()._immediate_update(previous_state)
+
+    def _stop_stream_if_streaming_off(self):
+        """HA Streaming switched off: end this camera's running stream."""
+        stream = self.stream
+
+        if stream is None or self.supported_features & CameraEntityFeature.STREAM:
+            return
+
+        _LOGGER.debug(f"{self.name}: HA streaming off, stopping its stream")
+        self.stream = None
+        self.hass.async_create_task(stream.stop())
 
     @property
     def _stream_method(self) -> str:
@@ -301,8 +313,15 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
 
     @property
     def supported_features(self) -> CameraEntityFeature:
-        """Return supported features for this camera."""
-        return self._attr_supported_features
+        """Stream when the server's HA Streaming switch is on."""
+        if (
+            getattr(self, "_stream_source", None)
+            and self.entity_manager is not None
+            and self.entity_manager.ha_streaming()
+        ):
+            return CameraEntityFeature.STREAM
+
+        return CameraEntityFeature(0)
 
     @property
     def frame_interval(self):

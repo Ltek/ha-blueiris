@@ -685,6 +685,14 @@ STREAM_MONITORING_NAME = "Stream Monitoring"
 STREAM_MONITORING_ICON = "mdi:video-check"
 STREAM_MONITORING_SWITCH = "StreamMonitoringSwitch"
 KEY_STREAM_MONITORING = "stream_monitoring"
+
+# HA streaming: cameras offer HA's stream (HLS / WebRTC) instead of an MJPEG
+# view built from still images. Server switch, live, kept across restarts;
+# starts from the old 'Support stream component' option.
+HA_STREAMING_NAME = "HA Streaming"
+HA_STREAMING_ICON = "mdi:video-wireless-outline"
+HA_STREAMING_SWITCH = "HaStreamingSwitch"
+KEY_HA_STREAMING = "ha_streaming"
 STREAM_HEALTH_ICON = "mdi:video-check-outline"
 
 # Server Reload button

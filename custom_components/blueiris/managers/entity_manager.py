@@ -840,6 +840,14 @@ class EntityManager:
         except Exception as ex:
             self.log_exception(ex, "Failed to generate Blue Iris log sensor")
 
+    def ha_streaming(self) -> bool:
+        auto_reset = self.ha.auto_reset_manager
+        if DOMAIN_STREAM not in self.hass.data:
+            return False
+        if auto_reset is None:
+            return bool(self.config_data.support_stream)
+        return auto_reset.ha_streaming
+
     def stream_method(self) -> str:
         auto_reset = self.ha.auto_reset_manager
         return DEFAULT_STREAM_METHOD if auto_reset is None else auto_reset.stream_method
@@ -866,6 +874,20 @@ class EntityManager:
         try:
             monitor = self.ha.stream_monitor
             auto_reset = self.ha.auto_reset_manager
+
+            if auto_reset is not None and DOMAIN_STREAM in self.hass.data:
+                name = f"{self.integration_title} {HA_STREAMING_NAME}"
+                streaming = self._config_entity(
+                    DOMAIN_SWITCH,
+                    name,
+                    None,
+                    system_device_name,
+                    HA_STREAMING_SWITCH,
+                    auto_reset.ha_streaming,
+                    HA_STREAMING_ICON,
+                    {},
+                )
+                self.set_entity(DOMAIN_SWITCH, name, streaming)
 
             if auto_reset is not None:
                 name = f"{self.integration_title} {STREAM_MONITORING_NAME}"
