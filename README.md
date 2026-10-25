@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current build: **v2026.10.25.37** · full history in [CHANGELOG.md](CHANGELOG.md)
+Current build: **v2026.10.25.38** · full history in [CHANGELOG.md](CHANGELOG.md)
 
 ## Features
 
@@ -124,8 +124,11 @@ Switches how camera entities build their stream and still-image URLs, without a 
 | Fixed URL (default)     | The URL made when the camera entity was created, with that session. The original elad-bar behaviour |
 | Follow session          | The URL always uses the current Blue Iris session; when the integration logs in again, every running stream is restarted with the new URL (the method used by kramttocs/ha-blueiris) |
 | Follow session + audio  | As Follow session, and adds `audio=1` for cameras that have audio                                  |
+| Login in URL            | No session: the integration's username and password go in the URL (`http://user:password@host/...`, sent as HTTP Basic auth). Never goes stale, so streams are never restarted. Still images use Basic auth too. Without a username and password it works like Follow session |
 
 The attribute `stream_restarts` counts streams restarted with a new URL since start. Follow session restarts every running stream on each new login, so a server that drops sessions often will make streams restart often. Try one method for a while, then the other.
+
+With *Login in URL* the password is part of the stream URL Home Assistant opens. Home Assistant hides it in its stream logs, but anything else that shows the stream source (for example a custom card, or a log at debug level from another integration) could show it. Blue Iris must accept HTTP Basic auth for streams; if the live view stays black with this method, it doesn't, and you should switch back.
 
 **Log level**
 

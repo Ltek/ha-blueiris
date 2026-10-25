@@ -648,7 +648,16 @@ STREAM_METHOD_FIXED = "Fixed URL"
 STREAM_METHOD_SESSION = "Follow session"
 # Same, and asks for audio on cameras that have it (audio=1)
 STREAM_METHOD_SESSION_AUDIO = "Follow session + audio"
-STREAM_METHODS = [STREAM_METHOD_FIXED, STREAM_METHOD_SESSION, STREAM_METHOD_SESSION_AUDIO]
+# No session: the login goes in the URL as http://user:password@host/...
+# (sent as HTTP Basic auth; HA redacts it in its stream logs). Never goes
+# stale, so streams are not restarted
+STREAM_METHOD_LOGIN = "Login in URL"
+STREAM_METHODS = [
+    STREAM_METHOD_FIXED,
+    STREAM_METHOD_SESSION,
+    STREAM_METHOD_SESSION_AUDIO,
+    STREAM_METHOD_LOGIN,
+]
 DEFAULT_STREAM_METHOD = STREAM_METHOD_FIXED
 LOG_LEVEL_ICON = "mdi:text-box-search-outline"
 INTEGRATION_LOGGER = f"custom_components.{DOMAIN}"

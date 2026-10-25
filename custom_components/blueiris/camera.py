@@ -8,6 +8,7 @@ import asyncio
 import logging
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 
 import aiohttp
 import voluptuous as vol
@@ -47,6 +48,7 @@ from .helpers.const import (
     SERVICE_TRIGGER_CAMERA,
     SNAPSHOT_MEDIA_FOLDER,
     STREAM_METHOD_FIXED,
+    STREAM_METHOD_LOGIN,
     STREAM_METHOD_SESSION_AUDIO,
     STREAM_VIDEO,
 )
@@ -188,6 +190,20 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
     def _session_url(self, path: str) -> str:
         return f"{self.api.base_url}/{path}?session={self.api.session_id}"
 
+    def _login_url(self, path: str) -> Optional[str]:
+        """http://user:password@host:port/path, or None without a login."""
+        config_data = self.ha.config_data
+        username = config_data.username
+        password = config_data.password_clear_text
+
+        if not username or not password:
+            return None
+
+        scheme, rest = self.api.base_url.split("://", 1)
+        login = f"{quote(username, safe='')}:{quote(password, safe='')}"
+
+        return f"{scheme}://{login}@{rest}/{path}"
+
     def current_stream_source(self) -> Optional[str]:
         """Stream URL for the selected Stream Method."""
         method = self._stream_method
@@ -197,6 +213,13 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
 
         video = STREAM_VIDEO.get(self.ha.config_data.stream_type, {})
         path = f"{video.get('stream_name')}/{self.entity.id}/{video.get('file_name', '')}"
+
+        if method == STREAM_METHOD_LOGIN:
+            login_url = self._login_url(path)
+            if login_url is not None:
+                return login_url
+            # No username / password configured: nothing to put in the URL
+
         url = self._session_url(path)
 
         has_audio = self.entity.attributes.get(BI_CAMERA_ATTR_AUDIO_SUPPORT) is True
@@ -250,6 +273,9 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
         try:
             if self._stream_method == STREAM_METHOD_FIXED:
                 url = self._still_image_url.async_render()
+            elif self._stream_method == STREAM_METHOD_LOGIN and self._auth is not None:
+                # Basic auth header (self._auth), no session in the URL
+                url = f"{self.api.base_url}/image/{self.entity.id}"
             else:
                 url = self._session_url(f"image/{self.entity.id}")
         except TemplateError as err:
