@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current build: **v2026.10.25.41** · full history in [CHANGELOG.md](CHANGELOG.md)
+Current build: **v2026.10.25.42** (the v2026.10.24.36 code; see CHANGELOG) · full history in [CHANGELOG.md](CHANGELOG.md)
 
 ## Features
 
@@ -24,10 +24,6 @@ Current build: **v2026.10.25.41** · full history in [CHANGELOG.md](CHANGELOG.md
 - **Blue Iris log**: new warnings and errors as `blueiris_log` events and a Last Message sensor
 - **Services**: Trigger Camera, Move to Preset, Reset Camera, Snapshot to Database, Current Camera Snapshot
 - **Log Level** select on the server device to see and change the log level live
-- **HA Streaming** switch on the server device: HA's own stream (HLS / WebRTC) or an MJPEG view from still images, switched live
-- **Stream Method** select on the server device to switch how stream URLs are built, live
-- **Stream monitoring**: `blueiris_stream` events, per-camera stream status and a Stream Health sensor per Stream Method
-- **Reload Integration** button on the server device
 - **Diagnostics** download for bug reports
 - SSL with self-signed certificates
 
@@ -117,51 +113,6 @@ Collapsed groups below hold the other settings:
 Title will be extracted from BlueIris server's configuration, it will be set upon adding the server, and after every Option's change
 
 Note that in case there are 2 integrations with the same integration's title, components will be overwritten by both integrations.
-
-**HA Streaming** (`switch.<server>_ha_streaming`, Configuration section of the server device; only when HA's `stream` integration is loaded, as with `default_config`)
-
-| Switch | What camera live views get                                                                                 |
-| ------ | ---------------------------------------------------------------------------------------------------------- |
-| Off    | An MJPEG view that Home Assistant builds by fetching the camera's still image from Blue Iris over and over (once per frame at the camera's FPS) |
-| On     | Home Assistant's stream: one H264 connection per camera to Blue Iris, played as HLS (or WebRTC when a WebRTC provider such as go2rtc is set up) |
-
-Switches at once for every camera, no restart: cameras change their supported features, and running HA streams are stopped when it is turned off. Open dashboards may need a refresh to pick it up. Kept across restarts; until it is first changed it follows the options' *Support stream component* checkbox. With many cameras on one dashboard, *On* puts far less load on Blue Iris than the MJPEG view. Stream Method and Stream Monitoring only apply while it is on.
-
-**Stream Method** (`select.<server>_stream_method`, Configuration section of the server device)
-
-Switches how camera entities build their stream and still-image URLs, without a restart. Running streams are restarted with the new URL straight away; the choice is kept across restarts.
-
-| Method                  | Behaviour                                                                                          |
-| ----------------------- | -------------------------------------------------------------------------------------------------- |
-| Fixed URL (default)     | The URL made when the camera entity was created, with that session. The original elad-bar behaviour: running streams are never touched, except once when you switch to Fixed URL from another method |
-| Follow session          | The URL always uses the current Blue Iris session; when the integration logs in again, every running stream is restarted with the new URL (the method used by kramttocs/ha-blueiris) |
-| Follow session + audio  | As Follow session, and adds `audio=1` for cameras that have audio                                  |
-| Login in URL            | No session: the integration's username and password go in the URL (`http://user:password@host/...`, sent as HTTP Basic auth). Never goes stale, so streams are never restarted. Still images use Basic auth too. Without a username and password it works like Follow session |
-
-The attribute `stream_restarts` counts streams restarted with a new URL since start. Follow session restarts every running stream on each new login, so a server that drops sessions often will make streams restart often. Try one method for a while, then the other.
-
-With *Login in URL* the password is part of the stream URL Home Assistant opens. Home Assistant hides it in its stream logs, but anything else that shows the stream source (for example a custom card, or a log at debug level from another integration) could show it. Blue Iris must accept HTTP Basic auth for streams; if the live view stays black with this method, it doesn't, and you should switch back.
-
-**Stream monitoring** (`switch.<server>_stream_monitoring`, Configuration section of the server device, **off by default**, kept across restarts)
-
-While it is off, none of the monitoring runs: no checks, no events, no extra camera attributes, and no Stream Health sensor. While it is on, every open stream (someone watching, or preloaded) is checked every 2 s for new video. Each change fires the event `blueiris_stream` and writes an info line to the Home Assistant log:
-
-| `type`      | When                                                                                         |
-| ----------- | -------------------------------------------------------------------------------------------- |
-| `restart`   | The integration gave the stream a new URL; `reason` is `method_change` or `session_change`   |
-| `connected` | Video is flowing; `seconds` since the stream was opened, restarted or dropped                |
-| `dropped`   | No new video for 20 s while it was connected                                                 |
-| `failed`    | Still no video 60 s after opening, a restart or a drop                                       |
-
-Each event also has `camera_id`, `camera_name`, `entity_id`, `method` (the Stream Method at the time) and `reason` (`opened`, `method_change`, `session_change`, `stalled`).
-
-Camera entities get `stream_status` (idle, connecting, connected, down, failed), `stream_last_connect_seconds`, `stream_restarts`, `stream_drops` and `stream_failures`.
-
-`sensor.<server>_stream_health` (diagnostic, only while monitoring is on) is the number of open streams without video, with one attribute per Stream Method: restarts, connected, dropped, failed and average_connect_seconds. Counts start over when Home Assistant restarts.
-
-It can see whether video reaches Home Assistant and how fast it comes back; it can't see delay or buffering in the browser's player. It only sees streams Home Assistant opens itself (HLS live view); still-image cards and players that bypass Home Assistant's stream (for example WebRTC through go2rtc) are not seen. The log lines are at info level: set the server's Log Level to Info to see them.
-
-**Reload Integration** (`button.<server>_reload_integration`, Configuration section of the server device) reloads the integration, the same as Devices & Services -> Blue Iris -> Reload: it logs in again and recreates the entities and streams. Entities, settings and statistics of the stream monitor in memory start over.
 
 **Log level**
 
