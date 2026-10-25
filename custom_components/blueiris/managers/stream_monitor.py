@@ -45,6 +45,19 @@ class StreamMonitor:
 
     # ---- lifecycle -------------------------------------------------------
 
+    @property
+    def enabled(self) -> bool:
+        auto_reset = self._ha.auto_reset_manager
+        return auto_reset is not None and auto_reset.stream_monitoring
+
+    def apply_enabled(self):
+        """Start or stop to match the Stream Monitoring switch."""
+        if self.enabled:
+            self.start()
+        else:
+            self.stop()
+            self._records.clear()
+
     def start(self):
         if self._unsub is None:
             self._unsub = async_track_time_interval(
@@ -175,6 +188,9 @@ class StreamMonitor:
     @callback
     def stream_opened(self, camera_entity):
         """A new stream was created for the camera."""
+        if not self.enabled:
+            return
+
         record = self._record(camera_entity.entity.id)
         record.update(
             status=STREAM_STATUS_CONNECTING,
@@ -190,6 +206,9 @@ class StreamMonitor:
     @callback
     def stream_restarted(self, camera_entity, reason: str):
         """The integration gave the stream a new URL."""
+        if not self.enabled:
+            return
+
         record = self._record(camera_entity.entity.id)
         record.update(
             status=STREAM_STATUS_CONNECTING,

@@ -865,7 +865,23 @@ class EntityManager:
     def generate_stream_health_sensor(self, system_device_name):
         try:
             monitor = self.ha.stream_monitor
-            if monitor is None:
+            auto_reset = self.ha.auto_reset_manager
+
+            if auto_reset is not None:
+                name = f"{self.integration_title} {STREAM_MONITORING_NAME}"
+                switch = self._config_entity(
+                    DOMAIN_SWITCH,
+                    name,
+                    None,
+                    system_device_name,
+                    STREAM_MONITORING_SWITCH,
+                    auto_reset.stream_monitoring,
+                    STREAM_MONITORING_ICON,
+                    {},
+                )
+                self.set_entity(DOMAIN_SWITCH, name, switch)
+
+            if monitor is None or not monitor.enabled:
                 return
 
             entity = self._server_sensor(

@@ -236,11 +236,17 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
         Follow session: the Blue Iris session changed (new login). Any
         method: the Stream Method was switched.
         """
-        stream = self.stream
-        new_source = self.current_stream_source()
         method = self._stream_method
         method_changed = method != getattr(self, "_last_method", method)
         self._last_method = method
+
+        # Fixed URL never touches a running stream, as before Stream Method
+        # existed, except once when switching to it from another method
+        if method == STREAM_METHOD_FIXED and not method_changed:
+            return
+
+        stream = self.stream
+        new_source = self.current_stream_source()
 
         if stream is None or new_source is None or stream.source == new_source:
             return
@@ -259,28 +265,37 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
         _LOGGER.debug(f"Added new {self.name}")
         self._last_method = self._stream_method
         if self.ha.stream_monitor is not None:
+            # Only a reference; nothing runs while monitoring is off
             self.ha.stream_monitor.register(self)
 
     async def async_will_remove_from_hass_local(self):
         if self.ha.stream_monitor is not None:
             self.ha.stream_monitor.unregister(self)
 
+    def _monitoring(self) -> bool:
+        monitor = None if self.ha is None else self.ha.stream_monitor
+        return monitor is not None and monitor.enabled
+
     async def async_create_stream(self):
-        """Create the stream, and tell the stream monitor about a new one."""
+        """Create the stream; with monitoring on, report a new one."""
+        if not self._monitoring():
+            return await super().async_create_stream()
+
         previous = self.stream
         stream = await super().async_create_stream()
 
-        if stream is not None and stream is not previous and self.ha.stream_monitor:
+        if stream is not None and stream is not previous:
             self.ha.stream_monitor.stream_opened(self)
 
         return stream
 
     @property
     def extra_state_attributes(self):
-        attributes = dict(self.entity.attributes)
+        if not self._monitoring():
+            return self.entity.attributes
 
-        if self.ha is not None and self.ha.stream_monitor is not None:
-            attributes.update(self.ha.stream_monitor.attributes(self.entity.id))
+        attributes = dict(self.entity.attributes)
+        attributes.update(self.ha.stream_monitor.attributes(self.entity.id))
 
         return attributes
 

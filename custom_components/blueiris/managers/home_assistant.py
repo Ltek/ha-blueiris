@@ -133,7 +133,7 @@ class BlueIrisHomeAssistant:
         await self._auto_reset_manager.async_load(
             self._config_manager.config_entry.entry_id
         )
-        self.stream_monitor.start()
+        self.stream_monitor.apply_enabled()
 
         await self._hass.config_entries.async_forward_entry_setups(self._config_manager.config_entry, list(SIGNALS.keys()))
 
