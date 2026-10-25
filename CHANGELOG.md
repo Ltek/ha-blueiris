@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.10.25.40
+
+- Fixed URL is fully passive again: running streams are never compared or touched while it is selected, only once when switching to it
+- Stream monitoring is now off by default, with a Stream Monitoring switch on the server device. While off, nothing of it runs (no 2 s checks, no events, no camera state writes or attributes, no Stream Health sensor), so Fixed URL with monitoring off runs the same stream code as v2026.10.24.36
+
 ## v2026.10.25.39
 
 - Add stream monitoring: open streams are checked every 2 s for new video; `blueiris_stream` events (restart, connected, dropped, failed) with the Stream Method and reason, info log lines, per-camera stream attributes, and a Stream Health sensor with counts and average reconnect time per Stream Method

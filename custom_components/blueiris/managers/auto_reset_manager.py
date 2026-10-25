@@ -49,6 +49,7 @@ class AutoResetManager:
             AUTO_RESET_KEY_CAMERAS: {},
             KEY_PROBLEM_DETECTION_OFF: [],
             KEY_STREAM_METHOD: DEFAULT_STREAM_METHOD,
+            KEY_STREAM_MONITORING: False,
         }
 
     async def async_load(self, entry_id: str):
@@ -70,6 +71,9 @@ class AutoResetManager:
                     for cam_id, values in cameras.items()
                     if isinstance(values, dict)
                 }
+
+            if isinstance(stored.get(KEY_STREAM_MONITORING), bool):
+                settings[KEY_STREAM_MONITORING] = stored[KEY_STREAM_MONITORING]
 
             if stored.get(KEY_STREAM_METHOD) in STREAM_METHODS:
                 settings[KEY_STREAM_METHOD] = stored[KEY_STREAM_METHOD]
@@ -128,6 +132,14 @@ class AutoResetManager:
     @property
     def stream_method(self) -> str:
         return self._settings[KEY_STREAM_METHOD]
+
+    @property
+    def stream_monitoring(self) -> bool:
+        return self._settings[KEY_STREAM_MONITORING]
+
+    def set_stream_monitoring(self, enabled: bool):
+        self._settings[KEY_STREAM_MONITORING] = bool(enabled)
+        self._save()
 
     def set_stream_method(self, method: str):
         self._settings[KEY_STREAM_METHOD] = method

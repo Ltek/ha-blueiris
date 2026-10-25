@@ -680,6 +680,11 @@ STREAM_CHECK_INTERVAL = timedelta(seconds=2)
 STREAM_STALL_TIME = timedelta(seconds=20)  # no new video while connected
 STREAM_FAIL_TIME = timedelta(seconds=60)  # no video after (re)connecting
 STREAM_HEALTH_NAME = "Stream Health"
+# Off by default: while off, nothing of the monitor runs
+STREAM_MONITORING_NAME = "Stream Monitoring"
+STREAM_MONITORING_ICON = "mdi:video-check"
+STREAM_MONITORING_SWITCH = "StreamMonitoringSwitch"
+KEY_STREAM_MONITORING = "stream_monitoring"
 STREAM_HEALTH_ICON = "mdi:video-check-outline"
 
 # Server Reload button
