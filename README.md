@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current build: **v2026.10.24.36** · full history in [CHANGELOG.md](CHANGELOG.md)
+Current build: **v2026.10.25.37** · full history in [CHANGELOG.md](CHANGELOG.md)
 
 ## Features
 
@@ -24,6 +24,7 @@ Current build: **v2026.10.24.36** · full history in [CHANGELOG.md](CHANGELOG.md
 - **Blue Iris log**: new warnings and errors as `blueiris_log` events and a Last Message sensor
 - **Services**: Trigger Camera, Move to Preset, Reset Camera, Snapshot to Database, Current Camera Snapshot
 - **Log Level** select on the server device to see and change the log level live
+- **Stream Method** select on the server device to switch how stream URLs are built, live
 - **Diagnostics** download for bug reports
 - SSL with self-signed certificates
 
@@ -113,6 +114,18 @@ Collapsed groups below hold the other settings:
 Title will be extracted from BlueIris server's configuration, it will be set upon adding the server, and after every Option's change
 
 Note that in case there are 2 integrations with the same integration's title, components will be overwritten by both integrations.
+
+**Stream Method** (`select.<server>_stream_method`, Configuration section of the server device)
+
+Switches how camera entities build their stream and still-image URLs, without a restart. Running streams are restarted with the new URL straight away; the choice is kept across restarts.
+
+| Method                  | Behaviour                                                                                          |
+| ----------------------- | -------------------------------------------------------------------------------------------------- |
+| Fixed URL (default)     | The URL made when the camera entity was created, with that session. The original elad-bar behaviour |
+| Follow session          | The URL always uses the current Blue Iris session; when the integration logs in again, every running stream is restarted with the new URL (the method used by kramttocs/ha-blueiris) |
+| Follow session + audio  | As Follow session, and adds `audio=1` for cameras that have audio                                  |
+
+The attribute `stream_restarts` counts streams restarted with a new URL since start. Follow session restarts every running stream on each new login, so a server that drops sessions often will make streams restart often. Try one method for a while, then the other.
 
 **Log level**
 

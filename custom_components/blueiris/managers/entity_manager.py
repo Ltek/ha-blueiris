@@ -141,6 +141,8 @@ class EntityManager:
         self.last_problem_since = {}
         # camera id -> last Pause choice, to show a timed pause by its name
         self.pause_choice = {}
+        # Running streams restarted with a new URL (session change or method switch)
+        self.stream_restarts = 0
 
     @property
     def entity_registry(self) -> EntityRegistry:
@@ -278,6 +280,7 @@ class EntityManager:
 
         self.generate_auto_reset_server_switches(system_device_name, is_admin)
         self.generate_log_level_select(system_device_name)
+        self.generate_stream_method_select(system_device_name)
         self.generate_server_controls(system_device_name, is_admin)
         self.generate_log_sensor(system_device_name, is_admin)
 
@@ -834,6 +837,28 @@ class EntityManager:
             self.set_entity(DOMAIN_SENSOR, entity.name, entity)
         except Exception as ex:
             self.log_exception(ex, "Failed to generate Blue Iris log sensor")
+
+    def stream_method(self) -> str:
+        auto_reset = self.ha.auto_reset_manager
+        return DEFAULT_STREAM_METHOD if auto_reset is None else auto_reset.stream_method
+
+    def generate_stream_method_select(self, system_device_name):
+        try:
+            name = f"{self.integration_title} {STREAM_METHOD_NAME}"
+            entity = self._config_entity(
+                DOMAIN_SELECT,
+                name,
+                None,
+                system_device_name,
+                STREAM_METHOD,
+                self.stream_method(),
+                STREAM_METHOD_ICON,
+                {},
+            )
+            entity.attributes["stream_restarts"] = self.stream_restarts
+            self.set_entity(DOMAIN_SELECT, name, entity)
+        except Exception as ex:
+            self.log_exception(ex, "Failed to generate stream method select")
 
     def generate_log_level_select(self, system_device_name):
         try:

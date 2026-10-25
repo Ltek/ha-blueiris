@@ -1,5 +1,9 @@
 # Changelog
 
+## v2026.10.25.37
+
+- Add Stream Method select on the server device: Fixed URL (original, default), Follow session (stream URL follows the current Blue Iris session and running streams restart when it changes, as in kramttocs/ha-blueiris), Follow session + audio (adds `audio=1` for cameras with audio). Switches live, restarts running streams with the new URL, kept across restarts. Still images follow the same choice
+
 ## v2026.10.24.36
 
 - Auto reset can reboot the camera itself once after the last reset, before giving up: per-camera *Auto Reset Reboot* switch, default in Configure -> Auto reset defaults (off). New `reboot` event type and `rebooted` in the events; notifications say "after N reset(s) and a reboot"
