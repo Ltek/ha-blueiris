@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.10.25.39
+
+- Add stream monitoring: open streams are checked every 2 s for new video; `blueiris_stream` events (restart, connected, dropped, failed) with the Stream Method and reason, info log lines, per-camera stream attributes, and a Stream Health sensor with counts and average reconnect time per Stream Method
+- Add Reload Integration button to the server device
+
 ## v2026.10.25.38
 
 - Add *Login in URL* to the Stream Method select: the username and password go in the stream URL as `user:password@host` (HTTP Basic auth, redacted in HA's stream logs) instead of a session, so the URL never goes stale and streams are never restarted. Still images use Basic auth with no session. Falls back to Follow session without a login

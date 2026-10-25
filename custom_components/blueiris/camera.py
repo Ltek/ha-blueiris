@@ -50,6 +50,8 @@ from .helpers.const import (
     STREAM_METHOD_FIXED,
     STREAM_METHOD_LOGIN,
     STREAM_METHOD_SESSION_AUDIO,
+    STREAM_REASON_METHOD,
+    STREAM_REASON_SESSION,
     STREAM_VIDEO,
 )
 from .api.blue_iris_api import BlueIrisCommandError
@@ -236,17 +238,51 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
         """
         stream = self.stream
         new_source = self.current_stream_source()
+        method = self._stream_method
+        method_changed = method != getattr(self, "_last_method", method)
+        self._last_method = method
 
         if stream is None or new_source is None or stream.source == new_source:
             return
 
-        _LOGGER.debug(f"{self.name}: stream source changed ({self._stream_method})")
+        _LOGGER.debug(f"{self.name}: stream source changed ({method})")
         stream.update_source(new_source)
         self.entity_manager.stream_restarts += 1
+
+        if self.ha.stream_monitor is not None:
+            self.ha.stream_monitor.stream_restarted(
+                self, STREAM_REASON_METHOD if method_changed else STREAM_REASON_SESSION
+            )
 
     async def async_added_to_hass_local(self):
         """Subscribe MQTT events."""
         _LOGGER.debug(f"Added new {self.name}")
+        self._last_method = self._stream_method
+        if self.ha.stream_monitor is not None:
+            self.ha.stream_monitor.register(self)
+
+    async def async_will_remove_from_hass_local(self):
+        if self.ha.stream_monitor is not None:
+            self.ha.stream_monitor.unregister(self)
+
+    async def async_create_stream(self):
+        """Create the stream, and tell the stream monitor about a new one."""
+        previous = self.stream
+        stream = await super().async_create_stream()
+
+        if stream is not None and stream is not previous and self.ha.stream_monitor:
+            self.ha.stream_monitor.stream_opened(self)
+
+        return stream
+
+    @property
+    def extra_state_attributes(self):
+        attributes = dict(self.entity.attributes)
+
+        if self.ha is not None and self.ha.stream_monitor is not None:
+            attributes.update(self.ha.stream_monitor.attributes(self.entity.id))
+
+        return attributes
 
     @property
     def supported_features(self) -> CameraEntityFeature:
