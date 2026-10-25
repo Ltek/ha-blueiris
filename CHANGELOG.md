@@ -1,5 +1,9 @@
 # Changelog
 
+## v2026.10.25.38
+
+- Add *Login in URL* to the Stream Method select: the username and password go in the stream URL as `user:password@host` (HTTP Basic auth, redacted in HA's stream logs) instead of a session, so the URL never goes stale and streams are never restarted. Still images use Basic auth with no session. Falls back to Follow session without a login
+
 ## v2026.10.25.37
 
 - Add Stream Method select on the server device: Fixed URL (original, default), Follow session (stream URL follows the current Blue Iris session and running streams restart when it changes, as in kramttocs/ha-blueiris), Follow session + audio (adds `audio=1` for cameras with audio). Switches live, restarts running streams with the new URL, kept across restarts. Still images follow the same choice
