@@ -659,6 +659,33 @@ STREAM_METHODS = [
     STREAM_METHOD_LOGIN,
 ]
 DEFAULT_STREAM_METHOD = STREAM_METHOD_FIXED
+
+# Stream monitoring (blueiris_stream events, Stream Health sensor)
+STREAM_EVENT = f"{DOMAIN}_stream"
+STREAM_EVENT_RESTART = "restart"
+STREAM_EVENT_CONNECTED = "connected"
+STREAM_EVENT_DROPPED = "dropped"
+STREAM_EVENT_FAILED = "failed"
+STREAM_REASON_OPENED = "opened"
+STREAM_REASON_METHOD = "method_change"
+STREAM_REASON_SESSION = "session_change"
+STREAM_REASON_STALLED = "stalled"
+STREAM_STATUS_IDLE = "idle"
+STREAM_STATUS_CONNECTING = "connecting"
+STREAM_STATUS_CONNECTED = "connected"
+STREAM_STATUS_DOWN = "down"
+STREAM_STATUS_FAILED = "failed"
+ATTR_STREAM_STATUS = "stream_status"
+STREAM_CHECK_INTERVAL = timedelta(seconds=2)
+STREAM_STALL_TIME = timedelta(seconds=20)  # no new video while connected
+STREAM_FAIL_TIME = timedelta(seconds=60)  # no video after (re)connecting
+STREAM_HEALTH_NAME = "Stream Health"
+STREAM_HEALTH_ICON = "mdi:video-check-outline"
+
+# Server Reload button
+RELOAD_BUTTON = "ReloadButton"
+RELOAD_NAME = "Reload Integration"
+RELOAD_ICON = "mdi:reload"
 LOG_LEVEL_ICON = "mdi:text-box-search-outline"
 INTEGRATION_LOGGER = f"custom_components.{DOMAIN}"
 
