@@ -55,6 +55,7 @@ from .helpers.const import (
     STREAM_VIDEO,
 )
 from .api.blue_iris_api import BlueIrisCommandError
+from .helpers.stream_url import build_stream_url, is_rtsp
 from .models.base_entity import BlueIrisEntity, async_setup_base_entry
 from .models.entity_data import EntityData
 
@@ -224,6 +225,12 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
 
         if method == STREAM_METHOD_FIXED or not self._stream_source:
             return self._stream_source
+
+        if is_rtsp(self.ha.config_data.stream_type):
+            # No session in an RTSP URL: the same for every method
+            return build_stream_url(
+                self.ha.config_data, self.api.base_url, None, self.entity.id
+            )
 
         video = STREAM_VIDEO.get(self.ha.config_data.stream_type, {})
         path = f"{video.get('stream_name')}/{self.entity.id}/{video.get('file_name', '')}"
