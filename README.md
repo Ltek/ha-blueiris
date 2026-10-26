@@ -8,10 +8,45 @@ Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It
 
 Current build: **v2026.10.26.45** · full history in [CHANGELOG.md](CHANGELOG.md)
 
+<!-- SCREENSHOTS:START -->
+<table>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <a href="screenshots/01-setup-server-details.png"><img src="screenshots/01-setup-server-details.png" width="100%" alt="Setup server details"></a><br><sub>Setup server details</sub>
+    </td>
+    <td align="center" valign="top" width="50%">
+      <a href="screenshots/02-setup-features.png"><img src="screenshots/02-setup-features.png" width="100%" alt="Setup features"></a><br><sub>Setup features</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <a href="screenshots/03-dashboard.png"><img src="screenshots/03-dashboard.png" width="100%" alt="Dashboard"></a><br><sub>Dashboard</sub>
+    </td>
+    <td align="center" valign="top" width="50%">
+      <a href="screenshots/04-server-device.png"><img src="screenshots/04-server-device.png" width="100%" alt="Server device"></a><br><sub>Server device</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <a href="screenshots/05-camera-device.png"><img src="screenshots/05-camera-device.png" width="100%" alt="Camera device"></a><br><sub>Camera device</sub>
+    </td>
+    <td align="center" valign="top" width="50%">
+      <a href="screenshots/06-auto-reset-notification.png"><img src="screenshots/06-auto-reset-notification.png" width="100%" alt="Auto reset notification"></a><br><sub>Auto reset notification</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <a href="screenshots/07-options.png"><img src="screenshots/07-options.png" width="100%" alt="Options"></a><br><sub>Options</sub>
+    </td>
+    <td></td>
+  </tr>
+</table>
+<!-- SCREENSHOTS:END -->
+
 ## Features
 
 - **Camera** per Blue Iris camera, group and system camera (All, Cycle), with live attributes (FPS, online, no signal count, error, ...)
-- **Streams**: H264 (HLS), H264 TS or MJPEG, optionally through the Home Assistant stream component
+- **Streams**: H264 (HLS), H264 TS, MJPEG, RTSP or RTSP sub stream, through Home Assistant's stream component or an MJPEG view
 - **Problem binary sensor** per camera: on when Blue Iris reports no signal, offline or a stalled stream
 - **Reset button** per camera
 - **Camera sensors** per camera: Bitrate (main and sub stream), Last Alert; optional Recording, Triggered, Alerting
@@ -544,6 +579,10 @@ Currently the Stream Component is a bit too ragged to use to cast Blue Iris vide
 ```
 
 [Example of configuration output](docs/configs/casting/ui-lovelace.yaml)
+
+## Screenshots
+
+The gallery at the top is taken from a real Home Assistant running this integration against a made-up Blue Iris server (`tools/screenshots/fake_blue_iris.py`; no real cameras or data). To make them again: `PYTHON=<venv with homeassistant, home-assistant-frontend, pillow> tools/screenshots/run.sh` (needs Node with `playwright-core` and its Chromium). Push the PNGs in `screenshots/`; the *Update Screenshot Grid* workflow rebuilds the gallery.
 
 ## Contributors
 
