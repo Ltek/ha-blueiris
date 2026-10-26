@@ -713,6 +713,10 @@ LOG_LEVELS = [
 CONF_STREAM_TYPE = "stream-type"
 STREAM_TYPE_H264 = "H264"
 STREAM_TYPE_H264_TS = "H264 TS"
+# RTSP from Blue Iris' web server port; needs the integration's login
+STREAM_TYPE_RTSP = "RTSP"
+STREAM_TYPE_RTSP_SUB = "RTSP sub stream"
+STREAM_PROTOCOL_RTSP = "rtsp"
 STREAM_TYPE_MJPG = "MJPEG"
 
 DEFAULT_STREAM_TYPE = STREAM_TYPE_H264
@@ -721,12 +725,16 @@ STREAM_VIDEO = {
     STREAM_TYPE_H264: {"file_name": "temp.m3u8", "stream_name": "h264"},
     STREAM_TYPE_H264_TS: {"file_name": "temp.ts", "stream_name": "h264"},
     STREAM_TYPE_MJPG: {"stream_name": "mjpg"},
+    STREAM_TYPE_RTSP: {"protocol": STREAM_PROTOCOL_RTSP},
+    STREAM_TYPE_RTSP_SUB: {"protocol": STREAM_PROTOCOL_RTSP, "query": "decode=-1"},
 }
 
 STREAM_CONTENT_TYPE = {
     STREAM_TYPE_H264: "video/H264",
     STREAM_TYPE_H264_TS: "video/MP2T",
     STREAM_TYPE_MJPG: "image/jpg",
+    STREAM_TYPE_RTSP: "video/H264",
+    STREAM_TYPE_RTSP_SUB: "video/H264",
 }
 
 COMPONENTS_TEMPLATE = {

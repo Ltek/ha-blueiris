@@ -1,5 +1,9 @@
 # Changelog
 
+## v2026.10.26.44
+
+- Add stream types *RTSP* and *RTSP sub stream*: `rtsp://user:password@<server>:<port>/<camera>` (sub stream with `?decode=-1`) on Blue Iris' web server port, instead of Blue Iris' HLS playlist. No session, so the same for every Stream Method. The password is shown as `****` in the camera's `stream_source` attribute
+
 ## v2026.10.26.43
 
 - Restore: the integration code is back to v2026.10.25.41 (Stream Method, Stream Monitoring, Reload Integration button, HA Streaming switch). The stream problems also happened with the v2026.10.24.36 code (build 42), so they were not caused by these builds

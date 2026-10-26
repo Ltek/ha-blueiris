@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current build: **v2026.10.26.43** (the v2026.10.25.41 code; see CHANGELOG) · full history in [CHANGELOG.md](CHANGELOG.md)
+Current build: **v2026.10.26.44** · full history in [CHANGELOG.md](CHANGELOG.md)
 
 ## Features
 
@@ -109,7 +109,7 @@ Collapsed groups below hold the other settings:
 | Blue Iris log       | Report Blue Iris log messages (on), Report: Warnings and errors / Errors only                                              |
 | Auto reset defaults | Persistent notifications, On by default, Delay, Attempts, Interval, Set all cameras back to these defaults (admin user only) |
 | Connection          | Host, Port, SSL, Username, Password, Clear credentials (workaround to clear the username and password; not stored as option) |
-| Streams and logging | Stream type (H264 / H264 TS / MJPEG), Stream support (requires restart), Log level - Default on Startup, Generate configuration files |
+| Streams and logging | Stream type (H264 / H264 TS / MJPEG / RTSP / RTSP sub stream), Stream support (requires restart), Log level - Default on Startup, Generate configuration files |
 
 **Page 2 - choose items.** Only appears when at least one section is set to `Choose…`. Each of those sections is a group with a checkbox per item, pre-filled with the current selection.
 
@@ -117,6 +117,17 @@ Collapsed groups below hold the other settings:
 Title will be extracted from BlueIris server's configuration, it will be set upon adding the server, and after every Option's change
 
 Note that in case there are 2 integrations with the same integration's title, components will be overwritten by both integrations.
+
+**Stream type RTSP** (Configure -> Streams and logging -> Stream type)
+
+| Stream type      | URL Home Assistant opens                                  |
+| ---------------- | --------------------------------------------------------- |
+| H264 (default)   | `http://<server>/h264/<camera>/temp.m3u8?session=...` - Blue Iris' HLS playlist |
+| H264 TS          | `http://<server>/h264/<camera>/temp.ts?session=...` - MPEG transport stream |
+| RTSP             | `rtsp://<user>:<password>@<server>/<camera>` - RTSP on Blue Iris' web server port |
+| RTSP sub stream  | Same with `?decode=-1`: the camera's sub stream, much lighter for dashboards with many cameras |
+
+RTSP reads the camera's H264 without Blue Iris' HLS step, which is what Home Assistant's stream handles best; try it if the log shows `Error opening stream (Server returned 5XX ...)` for `temp.m3u8`. It uses the integration's username and password (escaped; Home Assistant hides them in its stream logs, and the camera's `stream_source` attribute shows `****`), has no session, and so is the same for every Stream Method. It is plain `rtsp://` even when the integration uses SSL. Only used with HA Streaming on. A new stream type is used by cameras after Reload Integration or a restart.
 
 **HA Streaming** (`switch.<server>_ha_streaming`, Configuration section of the server device; only when HA's `stream` integration is loaded, as with `default_config`)
 

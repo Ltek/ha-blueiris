@@ -168,7 +168,7 @@
             },
             "data_description": {
               "log_level": "Applied every time Home Assistant starts or the integration reloads. Change it live, until the next restart, with the server's Log Level entity. Default keeps Home Assistant's own logging setup.",
-              "stream-type": "How the stream URL is kept up to date (fixed, or following the Blue Iris session) is switched live with the server's Stream Method entity.",
+              "stream-type": "H264 / H264 TS use Blue Iris' HTTP streams with a session. RTSP / RTSP sub stream use rtsp://user:password@server/camera on the web server port (needs the username and password) - try RTSP if streams fail with 'Server returned 5XX'. Applies after Reload Integration. How session URLs are kept up to date is switched live with the server's Stream Method entity.",
               "support_stream": "Only used until the server's HA Streaming switch is changed; that switch turns HA streaming on and off at once, without a restart."
             }
           },

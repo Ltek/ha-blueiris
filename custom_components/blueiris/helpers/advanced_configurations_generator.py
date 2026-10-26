@@ -241,6 +241,10 @@ class AdvancedConfigurationGenerator:
 
         data_template = script_object["data_template"]
 
+        if STREAM_VIDEO[stream_type].get("protocol"):
+            # The cast script uses Blue Iris' HTTP streams
+            stream_type = STREAM_TYPE_H264
+
         video = STREAM_VIDEO[stream_type]
         stream_content_type = STREAM_CONTENT_TYPE[stream_type]
 

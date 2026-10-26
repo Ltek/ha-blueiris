@@ -23,6 +23,7 @@ from homeassistant.util import slugify
 
 from ..api.blue_iris_api import BlueIrisApi
 from ..helpers.log_level import get_log_level
+from ..helpers.stream_url import build_stream_url, redact_url
 from ..helpers.const import *
 from ..models.camera_data import CameraData
 from ..models.config_data import ConfigData
@@ -1551,18 +1552,13 @@ class EntityManager:
             still_image_url = f"{base_url}/image/{camera.id}?session={session_id}"
             still_image_url_template = cv.template(still_image_url)
 
-            stream_config = STREAM_VIDEO.get(self.config_data.stream_type, {})
-
-            file_name = stream_config.get("file_name", "")
-            stream_name = stream_config.get("stream_name")
-
             support_stream = False
 
             if DOMAIN_STREAM in self.hass.data:
                 support_stream = self.config_data.support_stream
 
-            stream_source = (
-                f"{base_url}/{stream_name}/{camera.id}/{file_name}?session={session_id}"
+            stream_source = build_stream_url(
+                self.config_data, base_url, session_id, camera.id
             )
 
             fps = camera.data.get("FPS", 1)
@@ -1586,7 +1582,8 @@ class EntityManager:
 
             attributes = {
                 ATTR_FRIENDLY_NAME: entity_name,
-                CONF_STREAM_SOURCE: stream_source,
+                # RTSP URLs carry the login: never show the password
+                CONF_STREAM_SOURCE: redact_url(stream_source),
                 CONF_STILL_IMAGE_URL: still_image_url,
             }
 
