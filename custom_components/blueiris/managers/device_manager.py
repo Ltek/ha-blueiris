@@ -107,6 +107,11 @@ class DeviceManager:
             "sw_version": version,
         }
 
+        # 'Visit' link on the device page to Blue Iris' web interface
+        base_url = getattr(self._api, "base_url", None)
+        if base_url:
+            device_info["configuration_url"] = base_url
+
         self.set(device_name, device_info)
 
     def generate_camera_device(self, camera: CameraData):

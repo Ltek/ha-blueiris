@@ -5,7 +5,6 @@ from cryptography.fernet import InvalidToken
 from voluptuous import Marker
 
 from homeassistant.components.mqtt import DATA_MQTT
-from homeassistant.components.stream.const import DOMAIN as DOMAIN_STREAM
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers.selector import (
@@ -302,9 +301,6 @@ class ConfigFlowManager:
         fields[vol.Required(OPTION_SECTION_SERVER)] = section(
             vol.Schema(self.get_server_fields(config_data)), {"collapsed": True}
         )
-        fields[vol.Required(OPTION_SECTION_LOG)] = section(
-            vol.Schema(self.get_log_fields(config_data)), {"collapsed": True}
-        )
 
         connection_fields = self._get_default_fields(CONFIG_FLOW_OPTIONS)
         connection_fields[vol.Optional(CONF_CLEAR_CREDENTIALS, default=False)] = bool
@@ -313,17 +309,9 @@ class ConfigFlowManager:
             vol.Schema(connection_fields), {"collapsed": True}
         )
 
-        general_fields = {
-            vol.Optional(CONF_STREAM_TYPE, default=config_data.stream_type): vol.In(
-                list(STREAM_VIDEO.keys())
-            ),
-        }
-
-        if DOMAIN_STREAM in self._hass.data:
-            general_fields[
-                vol.Optional(CONF_SUPPORT_STREAM, default=config_data.support_stream)
-            ] = bool
-
+        # Stream type, HA streaming, Blue Iris log reporting and the auto reset
+        # defaults are set on the server device (live, no reload)
+        general_fields = {}
         general_fields[
             vol.Optional(CONF_LOG_LEVEL, default=config_data.log_level)
         ] = SelectSelector(
@@ -334,18 +322,6 @@ class ConfigFlowManager:
         fields[vol.Required(OPTION_SECTION_GENERAL)] = section(
             vol.Schema(general_fields), {"collapsed": True}
         )
-
-        # Auto reset needs admin rights, like the reset itself
-        ha = self._get_ha(self._config_entry.entry_id)
-        if ha.api.data.get("admin", False):
-            fields[vol.Required(OPTION_SECTION_AUTO_RESET)] = section(
-                vol.Schema(
-                    self._get_auto_reset_fields(
-                        config_data, ha.auto_reset_manager.notifications
-                    )
-                ),
-                {"collapsed": True},
-            )
 
         return vol.Schema(fields)
 
@@ -368,23 +344,6 @@ class ConfigFlowManager:
         )
 
         return fields
-
-    @staticmethod
-    def get_log_fields(config_data: ConfigData) -> dict:
-        return {
-            vol.Optional(CONF_LOG_EVENTS, default=config_data.log_events): (
-                BooleanSelector()
-            ),
-            vol.Optional(CONF_LOG_MIN_LEVEL, default=config_data.log_min_level): (
-                SelectSelector(
-                    SelectSelectorConfig(
-                        options=list(LOG_MIN_LEVELS),
-                        mode=SelectSelectorMode.DROPDOWN,
-                        translation_key="log_min_level",
-                    )
-                )
-            ),
-        }
 
     def get_setup_features_schema(self) -> vol.Schema:
         """Setup's second page: features that need no camera list."""

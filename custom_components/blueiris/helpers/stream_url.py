@@ -10,7 +10,11 @@ def is_rtsp(stream_type: str) -> bool:
 
 
 def build_stream_url(
-    config_data, base_url: str, session_id: Optional[str], camera_id: str
+    config_data,
+    base_url: str,
+    session_id: Optional[str],
+    camera_id: str,
+    stream_type: Optional[str] = None,
 ) -> str:
     """URL HA's stream component opens for a camera.
 
@@ -19,7 +23,7 @@ def build_stream_url(
     server port (manual, 'RTSP from your HTTP port'), no session; the
     sub stream adds ?decode=-1.
     """
-    video = STREAM_VIDEO.get(config_data.stream_type, {})
+    video = STREAM_VIDEO.get(stream_type or config_data.stream_type, {})
 
     if video.get("protocol") != STREAM_PROTOCOL_RTSP:
         stream_name = video.get("stream_name")

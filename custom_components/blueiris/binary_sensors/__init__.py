@@ -6,11 +6,13 @@ from .audio import BlueIrisAudioBinarySensor
 from .base import BlueIrisBinarySensor
 from .main import BlueIrisMainBinarySensor
 from .problem import BlueIrisProblemBinarySensor
+from .server_info import BlueIrisServerInfoBinarySensor
 
 BINARY_SENSOR_TYPES = {
     SENSOR_AUDIO_NAME: BlueIrisAudioBinarySensor,
     SENSOR_MAIN_NAME: BlueIrisMainBinarySensor,
     SENSOR_PROBLEM_NAME: BlueIrisProblemBinarySensor,
+    SERVER_INFO: BlueIrisServerInfoBinarySensor,
 }
 
 CURRENT_DOMAIN = DOMAIN_BINARY_SENSOR

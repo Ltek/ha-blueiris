@@ -620,6 +620,7 @@ CONF_LIMIT_REFETCH_TO_URL_CHANGE = "limit_refetch_to_url_change"
 CONF_STILL_IMAGE_URL = "still_image_url"
 CONF_STREAM_SOURCE = "stream_source"
 CONF_FRAMERATE = "framerate"
+CONF_INITIAL_SESSION = "initial_session"
 
 LOG_LEVEL_DEFAULT = "Default"
 LOG_LEVEL_DEBUG = "Debug"
@@ -693,6 +694,32 @@ HA_STREAMING_NAME = "HA Streaming"
 HA_STREAMING_ICON = "mdi:video-wireless-outline"
 HA_STREAMING_SWITCH = "HaStreamingSwitch"
 KEY_HA_STREAMING = "ha_streaming"
+
+# Settings moved from the options to server entities (stored with the other
+# integration settings; copied from the options once, on the first start)
+KEY_STREAM_TYPE = "stream_type"
+KEY_LOG_REPORTING = "log_reporting"
+KEY_AUTO_RESET_DEFAULTS = "auto_reset_defaults"
+LOG_REPORTING_OFF = "off"
+LOG_REPORTING_OPTIONS = {
+    LOG_REPORTING_OFF: "Off",
+    "warning": "Warnings and errors",
+    "error": "Errors only",
+}
+STREAM_TYPE_NAME = "Stream Type"
+STREAM_TYPE_ICON = "mdi:video-input-component"
+STREAM_TYPE_SELECT = "StreamTypeSelect"
+LOG_REPORTING_NAME = "Blue Iris Log Reporting"
+LOG_REPORTING_ICON = "mdi:message-badge-outline"
+LOG_REPORTING_SELECT = "LogReportingSelect"
+AUTO_RESET_DEFAULT_SWITCH = "AutoResetDefaultSwitch"
+AUTO_RESET_DEFAULT_NUMBER = "AutoResetDefaultNumber"
+AUTO_RESET_APPLY_DEFAULTS_BUTTON = "AutoResetApplyDefaultsButton"
+AUTO_RESET_APPLY_DEFAULTS_NAME = "Reset Cameras to Auto Reset Defaults"
+AUTO_RESET_DEFAULT_PREFIX = "Default"
+
+# Read-only server information (diagnostic)
+SERVER_INFO = "ServerInfo"
 STREAM_HEALTH_ICON = "mdi:video-check-outline"
 
 # Server Reload button

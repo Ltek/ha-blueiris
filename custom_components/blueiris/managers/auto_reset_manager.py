@@ -50,8 +50,11 @@ class AutoResetManager:
             KEY_PROBLEM_DETECTION_OFF: [],
             KEY_STREAM_METHOD: DEFAULT_STREAM_METHOD,
             KEY_STREAM_MONITORING: False,
-            # None: not set yet, use the options' Support stream component
+            # None: not set yet; filled from the options on the first start
             KEY_HA_STREAMING: None,
+            KEY_STREAM_TYPE: None,
+            KEY_LOG_REPORTING: None,
+            KEY_AUTO_RESET_DEFAULTS: None,
         }
 
     async def async_load(self, entry_id: str):
@@ -74,6 +77,17 @@ class AutoResetManager:
                     if isinstance(values, dict)
                 }
 
+            if stored.get(KEY_STREAM_TYPE) in STREAM_VIDEO:
+                settings[KEY_STREAM_TYPE] = stored[KEY_STREAM_TYPE]
+
+            if stored.get(KEY_LOG_REPORTING) in LOG_REPORTING_OPTIONS:
+                settings[KEY_LOG_REPORTING] = stored[KEY_LOG_REPORTING]
+
+            if isinstance(stored.get(KEY_AUTO_RESET_DEFAULTS), dict):
+                settings[KEY_AUTO_RESET_DEFAULTS] = clean_auto_reset_values(
+                    stored[KEY_AUTO_RESET_DEFAULTS], AUTO_RESET_CAMERA_DEFAULTS
+                )
+
             if isinstance(stored.get(KEY_HA_STREAMING), bool):
                 settings[KEY_HA_STREAMING] = stored[KEY_HA_STREAMING]
 
@@ -90,6 +104,41 @@ class AutoResetManager:
                 ]
 
         self._settings = settings
+
+        if self._migrate_from_options():
+            self._save()
+
+    def _migrate_from_options(self) -> bool:
+        """Copy settings that moved to server entities from the options, once."""
+        config_data = self._ha.config_data
+        if config_data is None:
+            return False
+
+        settings = self._settings
+        changed = False
+
+        if settings[KEY_HA_STREAMING] is None:
+            settings[KEY_HA_STREAMING] = bool(config_data.support_stream)
+            changed = True
+
+        if settings[KEY_STREAM_TYPE] is None:
+            stream_type = config_data.stream_type
+            settings[KEY_STREAM_TYPE] = (
+                stream_type if stream_type in STREAM_VIDEO else DEFAULT_STREAM_TYPE
+            )
+            changed = True
+
+        if settings[KEY_LOG_REPORTING] is None:
+            settings[KEY_LOG_REPORTING] = (
+                config_data.log_min_level if config_data.log_events else LOG_REPORTING_OFF
+            )
+            changed = True
+
+        if settings[KEY_AUTO_RESET_DEFAULTS] is None:
+            settings[KEY_AUTO_RESET_DEFAULTS] = dict(config_data.auto_reset_defaults)
+            changed = True
+
+        return changed
 
     def _save(self):
         if self._store is not None:
@@ -114,11 +163,52 @@ class AutoResetManager:
 
     @property
     def defaults(self) -> dict[str, Any]:
+        stored = self._settings[KEY_AUTO_RESET_DEFAULTS]
+        if stored is not None:
+            return dict(stored)
+
         config_data = self._ha.config_data
         if config_data is None:
             return dict(AUTO_RESET_CAMERA_DEFAULTS)
 
         return dict(config_data.auto_reset_defaults)
+
+    def set_default(self, key: str, value):
+        defaults = self.defaults
+        defaults[key] = value
+        self._settings[KEY_AUTO_RESET_DEFAULTS] = clean_auto_reset_values(
+            defaults, AUTO_RESET_CAMERA_DEFAULTS
+        )
+        self._save()
+
+    @property
+    def stream_type(self) -> str:
+        stored = self._settings[KEY_STREAM_TYPE]
+        if stored is not None:
+            return stored
+
+        config_data = self._ha.config_data
+        stream_type = None if config_data is None else config_data.stream_type
+        return stream_type if stream_type in STREAM_VIDEO else DEFAULT_STREAM_TYPE
+
+    def set_stream_type(self, stream_type: str):
+        self._settings[KEY_STREAM_TYPE] = stream_type
+        self._save()
+
+    @property
+    def log_reporting(self) -> str:
+        stored = self._settings[KEY_LOG_REPORTING]
+        if stored is not None:
+            return stored
+
+        config_data = self._ha.config_data
+        if config_data is None or not config_data.log_events:
+            return LOG_REPORTING_OFF
+        return config_data.log_min_level
+
+    def set_log_reporting(self, value: str):
+        self._settings[KEY_LOG_REPORTING] = value
+        self._save()
 
     def camera_settings(self, camera_id: str) -> dict[str, Any]:
         """Defaults from the options, with this camera's own values on top."""
