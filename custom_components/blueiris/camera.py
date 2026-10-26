@@ -34,6 +34,7 @@ from .helpers.const import (
     BI_CAMERA_ATTR_GROUP_CAMERAS,
     CONF_CONTENT_TYPE,
     CONF_FRAMERATE,
+    CONF_INITIAL_SESSION,
     CONF_LIMIT_REFETCH_TO_URL_CHANGE,
     CONF_STILL_IMAGE_URL,
     CONF_STREAM_SOURCE,
@@ -156,6 +157,7 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
         self._still_image_url.hass = hass
 
         self._stream_source = device_info[CONF_STREAM_SOURCE]
+        self._initial_session = device_info.get(CONF_INITIAL_SESSION)
         self._limit_refetch = device_info[CONF_LIMIT_REFETCH_TO_URL_CHANGE]
         self._frame_interval = 1 / device_info[CONF_FRAMERATE]        
         self.content_type = device_info[CONF_CONTENT_TYPE]
@@ -222,17 +224,28 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
     def current_stream_source(self) -> Optional[str]:
         """Stream URL for the selected Stream Method."""
         method = self._stream_method
+        stream_type = self.entity_manager.stream_type()
 
-        if method == STREAM_METHOD_FIXED or not self._stream_source:
+        if not self._stream_source:
             return self._stream_source
 
-        if is_rtsp(self.ha.config_data.stream_type):
+        if is_rtsp(stream_type):
             # No session in an RTSP URL: the same for every method
             return build_stream_url(
-                self.ha.config_data, self.api.base_url, None, self.entity.id
+                self.ha.config_data, self.api.base_url, None, self.entity.id, stream_type
             )
 
-        video = STREAM_VIDEO.get(self.ha.config_data.stream_type, {})
+        if method == STREAM_METHOD_FIXED:
+            # The session from when the entity was created, as before
+            return build_stream_url(
+                self.ha.config_data,
+                self.api.base_url,
+                self._initial_session,
+                self.entity.id,
+                stream_type,
+            )
+
+        video = STREAM_VIDEO.get(stream_type, {})
         path = f"{video.get('stream_name')}/{self.entity.id}/{video.get('file_name', '')}"
 
         if method == STREAM_METHOD_LOGIN:
@@ -259,9 +272,13 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
         method_changed = method != getattr(self, "_last_method", method)
         self._last_method = method
 
+        stream_type = self.entity_manager.stream_type()
+        type_changed = stream_type != getattr(self, "_last_stream_type", stream_type)
+        self._last_stream_type = stream_type
+
         # Fixed URL never touches a running stream, as before Stream Method
-        # existed, except once when switching to it from another method
-        if method == STREAM_METHOD_FIXED and not method_changed:
+        # existed, except once when the method or the stream type is switched
+        if method == STREAM_METHOD_FIXED and not method_changed and not type_changed:
             return
 
         stream = self.stream
@@ -276,13 +293,17 @@ class BlueIrisCamera(Camera, BlueIrisEntity, ABC):
 
         if self.ha.stream_monitor is not None:
             self.ha.stream_monitor.stream_restarted(
-                self, STREAM_REASON_METHOD if method_changed else STREAM_REASON_SESSION
+                self,
+                STREAM_REASON_METHOD
+                if method_changed or type_changed
+                else STREAM_REASON_SESSION,
             )
 
     async def async_added_to_hass_local(self):
         """Subscribe MQTT events."""
         _LOGGER.debug(f"Added new {self.name}")
         self._last_method = self._stream_method
+        self._last_stream_type = self.entity_manager.stream_type()
         if self.ha.stream_monitor is not None:
             # Only a reference; nothing runs while monitoring is off
             self.ha.stream_monitor.register(self)

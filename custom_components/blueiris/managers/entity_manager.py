@@ -282,6 +282,8 @@ class EntityManager:
         self.generate_auto_reset_server_switches(system_device_name, is_admin)
         self.generate_log_level_select(system_device_name)
         self.generate_stream_method_select(system_device_name)
+        self.generate_server_settings(system_device_name, is_admin)
+        self.generate_server_info(system_device_name, is_admin)
         self.generate_stream_health_sensor(system_device_name)
         self.generate_reload_button(system_device_name)
         self.generate_server_controls(system_device_name, is_admin)
@@ -815,7 +817,7 @@ class EntityManager:
 
     def generate_log_sensor(self, system_device_name, is_admin):
         try:
-            if not is_admin or not self.config_data.log_events:
+            if not is_admin or self.log_reporting() == LOG_REPORTING_OFF:
                 return
 
             last = self.ha.last_log_entry or {}
@@ -840,6 +842,180 @@ class EntityManager:
             self.set_entity(DOMAIN_SENSOR, entity.name, entity)
         except Exception as ex:
             self.log_exception(ex, "Failed to generate Blue Iris log sensor")
+
+    def generate_server_settings(self, system_device_name, is_admin):
+        """Settings that used to be in the options, now live on the server."""
+        try:
+            auto_reset = self.ha.auto_reset_manager
+            if auto_reset is None:
+                return
+
+            title = self.integration_title
+            selects = [
+                (STREAM_TYPE_NAME, STREAM_TYPE_SELECT, self.stream_type(), STREAM_TYPE_ICON),
+            ]
+            if is_admin:
+                selects.append(
+                    (
+                        LOG_REPORTING_NAME,
+                        LOG_REPORTING_SELECT,
+                        LOG_REPORTING_OPTIONS[self.log_reporting()],
+                        LOG_REPORTING_ICON,
+                    )
+                )
+
+            for label, entity_type, state, icon in selects:
+                name = f"{title} {label}"
+                self.set_entity(
+                    DOMAIN_SELECT,
+                    name,
+                    self._config_entity(
+                        DOMAIN_SELECT, name, None, system_device_name, entity_type, state, icon, {}
+                    ),
+                )
+
+            # Auto reset defaults need admin rights, like auto reset itself
+            if not is_admin:
+                return
+
+            defaults = auto_reset.defaults
+            prefix = f"{title} {AUTO_RESET_DEFAULT_PREFIX} {AUTO_RESET_NAME}"
+
+            for key, label, icon in [
+                (AUTO_RESET_KEY_ENABLED, "", AUTO_RESET_ICON),
+                (AUTO_RESET_KEY_REBOOT, f" {AUTO_RESET_REBOOT_NAME}", AUTO_RESET_REBOOT_ICON),
+            ]:
+                name = f"{prefix}{label}"
+                self.set_entity(
+                    DOMAIN_SWITCH,
+                    name,
+                    self._config_entity(
+                        DOMAIN_SWITCH,
+                        name,
+                        None,
+                        system_device_name,
+                        AUTO_RESET_DEFAULT_SWITCH,
+                        defaults[key],
+                        icon,
+                        {AUTO_RESET_SETTING: key},
+                    ),
+                )
+
+            for key, label, unit, icon in AUTO_RESET_NUMBERS:
+                minimum, maximum, step = AUTO_RESET_LIMITS[key]
+                name = f"{prefix} {label}"
+                self.set_entity(
+                    DOMAIN_NUMBER,
+                    name,
+                    self._config_entity(
+                        DOMAIN_NUMBER,
+                        name,
+                        None,
+                        system_device_name,
+                        AUTO_RESET_DEFAULT_NUMBER,
+                        defaults[key],
+                        icon,
+                        {
+                            AUTO_RESET_SETTING: key,
+                            ENTITY_NUMBER_MIN: minimum,
+                            ENTITY_NUMBER_MAX: maximum,
+                            ENTITY_NUMBER_STEP: step,
+                            ENTITY_NUMBER_UNIT: unit,
+                        },
+                    ),
+                )
+
+            name = f"{title} {AUTO_RESET_APPLY_DEFAULTS_NAME}"
+            self.set_entity(
+                DOMAIN_BUTTON,
+                name,
+                self._config_entity(
+                    DOMAIN_BUTTON,
+                    name,
+                    None,
+                    system_device_name,
+                    AUTO_RESET_APPLY_DEFAULTS_BUTTON,
+                    None,
+                    "mdi:restore",
+                    {ENTITY_CONFIG_CATEGORY: True},
+                ),
+            )
+        except Exception as ex:
+            self.log_exception(ex, "Failed to generate server settings")
+
+    def generate_server_info(self, system_device_name, is_admin):
+        """Read-only values: connection, versions, profile, schedule, cameras."""
+        try:
+            config_data = self.config_data
+            data = self.api.data
+            status = self.api.status
+
+            profiles = data.get("profiles") or []
+            profile = status.get("profile")
+            profile_name = (
+                profiles[profile]
+                if isinstance(profile, int) and 0 <= profile < len(profiles)
+                else profile
+            )
+
+            cameras = self.api.camera_list
+            physical = [c for c in cameras if c.is_physical]
+
+            sensors = [
+                ("Host", config_data.host, "mdi:ip-network", {}),
+                ("Port", None if config_data.port is None else str(config_data.port), "mdi:ethernet", {}),
+                ("Username", config_data.username or None, "mdi:account", {}),
+                ("Integration Version", self.ha.integration_version, "mdi:package-variant", {}),
+                ("Blue Iris Version", data.get("version"), "mdi:information-outline", {}),
+                ("Blue Iris Support", data.get("support"), "mdi:calendar-check", {}),
+                ("Active Profile", profile_name, "mdi:account-switch", {"profile_number": profile}),
+                ("Active Schedule", status.get("schedule"), "mdi:calendar-clock", {}),
+                (
+                    "Cameras",
+                    len(physical),
+                    "mdi:cctv",
+                    {
+                        "groups": sum(1 for c in cameras if c.is_group),
+                        "system_cameras": sum(1 for c in cameras if c.is_system),
+                        "camera_ids": [c.id for c in physical],
+                    },
+                ),
+            ]
+
+            diagnostic = {ENTITY_SENSOR_CATEGORY: EntityCategory.DIAGNOSTIC}
+
+            for label, state, icon, attributes in sensors:
+                entity = self._server_sensor(
+                    system_device_name, label, state, icon, diagnostic, attributes
+                )
+                self.set_entity(DOMAIN_SENSOR, entity.name, entity)
+
+            for label, state, icon in [
+                ("SSL", bool(config_data.ssl), "mdi:lock"),
+                ("Admin", bool(data.get("admin", False)), "mdi:shield-account"),
+            ]:
+                name = f"{self.integration_title} {label}"
+                entity = self._config_entity(
+                    DOMAIN_BINARY_SENSOR, name, None, system_device_name, SERVER_INFO, state, icon, {}
+                )
+                entity.event = None
+                self.set_entity(DOMAIN_BINARY_SENSOR, name, entity)
+        except Exception as ex:
+            self.log_exception(ex, "Failed to generate server info")
+
+    def stream_type(self) -> str:
+        auto_reset = self.ha.auto_reset_manager
+        if auto_reset is None:
+            return self.config_data.stream_type
+        return auto_reset.stream_type
+
+    def log_reporting(self) -> str:
+        auto_reset = self.ha.auto_reset_manager
+        if auto_reset is None:
+            if not self.config_data.log_events:
+                return LOG_REPORTING_OFF
+            return self.config_data.log_min_level
+        return auto_reset.log_reporting
 
     def ha_streaming(self) -> bool:
         auto_reset = self.ha.auto_reset_manager
@@ -1558,7 +1734,7 @@ class EntityManager:
                 support_stream = self.config_data.support_stream
 
             stream_source = build_stream_url(
-                self.config_data, base_url, session_id, camera.id
+                self.config_data, base_url, session_id, camera.id, self.stream_type()
             )
 
             fps = camera.data.get("FPS", 1)
@@ -1578,6 +1754,8 @@ class EntityManager:
                 CONF_PASSWORD: password,
                 CONF_AUTHENTICATION: AUTHENTICATION_BASIC,
                 CONF_SUPPORT_STREAM: support_stream,
+                # Session the Fixed URL keeps using
+                CONF_INITIAL_SESSION: session_id,
             }
 
             attributes = {

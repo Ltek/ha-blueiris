@@ -42,6 +42,8 @@ def get_button(hass: HomeAssistant, host: str, entity: EntityData):
         button = BlueIrisServerButton()
     elif entity.type == RELOAD_BUTTON:
         button = BlueIrisReloadButton()
+    elif entity.type == AUTO_RESET_APPLY_DEFAULTS_BUTTON:
+        button = BlueIrisApplyDefaultsButton()
     else:
         button = BlueIrisResetButton()
 
@@ -72,6 +74,20 @@ class BlueIrisCameraControlButton(ButtonEntity, BlueIrisEntity):
         except BlueIrisCommandError as ex:
             _LOGGER.error(str(ex))
             raise HomeAssistantError(str(ex)) from ex
+
+
+class BlueIrisApplyDefaultsButton(ButtonEntity, BlueIrisEntity):
+    """Clear every camera's own auto reset values."""
+
+    @property
+    def icon(self):
+        return self.entity.icon
+
+    async def async_press(self) -> None:
+        self.ha.auto_reset_manager.reset_cameras_to_defaults()
+
+        self.entity_manager.update()
+        await self.ha.dispatch_all()
 
 
 class BlueIrisReloadButton(ButtonEntity, BlueIrisEntity):

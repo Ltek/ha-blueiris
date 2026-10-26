@@ -6,7 +6,7 @@ Home Assistant integration for Blue Iris Video Security Software, polling the Bl
 
 Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
 
-Current build: **v2026.10.26.44** · full history in [CHANGELOG.md](CHANGELOG.md)
+Current build: **v2026.10.26.45** · full history in [CHANGELOG.md](CHANGELOG.md)
 
 ## Features
 
@@ -106,10 +106,10 @@ Collapsed groups below hold the other settings:
 | Group               | Fields                                                                                                                       |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Server              | Sensors: CPU, Memory, Free space per drive, Warnings, Connections. Controls: Shield, Profile Hold, Restart Web Server, Restart AI. Each on / off, all on by default |
-| Blue Iris log       | Report Blue Iris log messages (on), Report: Warnings and errors / Errors only                                              |
-| Auto reset defaults | Persistent notifications, On by default, Delay, Attempts, Interval, Set all cameras back to these defaults (admin user only) |
 | Connection          | Host, Port, SSL, Username, Password, Clear credentials (workaround to clear the username and password; not stored as option) |
-| Streams and logging | Stream type (H264 / H264 TS / MJPEG / RTSP / RTSP sub stream), Stream support (requires restart), Log level - Default on Startup, Generate configuration files |
+| Logging             | Log level - Default on Startup, Generate configuration files                                                                 |
+
+Stream type, HA Streaming, Stream Method, Blue Iris log reporting and the auto reset defaults are on the server device instead (see *Server device settings*). On the first start of v2026.10.26.45 they take the values they had in the options.
 
 **Page 2 - choose items.** Only appears when at least one section is set to `Choose…`. Each of those sections is a group with a checkbox per item, pre-filled with the current selection.
 
@@ -118,7 +118,25 @@ Title will be extracted from BlueIris server's configuration, it will be set upo
 
 Note that in case there are 2 integrations with the same integration's title, components will be overwritten by both integrations.
 
-**Stream type RTSP** (Configure -> Streams and logging -> Stream type)
+###### Server device settings
+
+Settings that change how the integration behaves are entities on the server device, in its Configuration section. Each shows its current value, changes at once without a reload, and is kept across restarts.
+
+| Entity | What it sets |
+| ------ | ------------ |
+| `select.<server>_stream_type` | Stream type (see below) |
+| `switch.<server>_ha_streaming` | HA's own stream or the MJPEG view |
+| `select.<server>_stream_method` | How session URLs are kept up to date |
+| `switch.<server>_stream_monitoring` | Stream monitoring on / off |
+| `select.<server>_blue_iris_log_reporting` | Off / Warnings and errors / Errors only (admin) |
+| `switch.<server>_default_auto_reset`, `..._default_auto_reset_reboot` | Auto reset defaults: on, reboot after the last reset (admin) |
+| `number.<server>_default_auto_reset_delay` / `_attempts` / `_interval` | Auto reset defaults (admin) |
+| `button.<server>_reset_cameras_to_auto_reset_defaults` | Clears every camera's own auto reset values (admin) |
+| `select.<server>_log_level`, `switch.<server>_auto_reset`, `..._auto_reset_notifications`, Restart and Reload buttons | As before |
+
+Read-only values in the Diagnostic section: Host, Port, SSL, Username (never the password), Admin (whether that user has admin rights in Blue Iris), Integration Version (the build installed), Blue Iris Version, Blue Iris Support, Active Profile, Active Schedule and Cameras (with groups and system cameras as attributes). The server device's **Visit** link opens Blue Iris' web interface.
+
+**Stream type RTSP** (server device -> Stream Type)
 
 | Stream type      | URL Home Assistant opens                                  |
 | ---------------- | --------------------------------------------------------- |
@@ -136,7 +154,7 @@ RTSP reads the camera's H264 without Blue Iris' HLS step, which is what Home Ass
 | Off    | An MJPEG view that Home Assistant builds by fetching the camera's still image from Blue Iris over and over (once per frame at the camera's FPS) |
 | On     | Home Assistant's stream: one H264 connection per camera to Blue Iris, played as HLS (or WebRTC when a WebRTC provider such as go2rtc is set up) |
 
-Switches at once for every camera, no restart: cameras change their supported features, and running HA streams are stopped when it is turned off. Open dashboards may need a refresh to pick it up. Kept across restarts; until it is first changed it follows the options' *Support stream component* checkbox. With many cameras on one dashboard, *On* puts far less load on Blue Iris than the MJPEG view. Stream Method and Stream Monitoring only apply while it is on.
+Switches at once for every camera, no restart: cameras change their supported features, and running HA streams are stopped when it is turned off. Open dashboards may need a refresh to pick it up. Kept across restarts. With many cameras on one dashboard, *On* puts far less load on Blue Iris than the MJPEG view. Stream Method and Stream Monitoring only apply while it is on.
 
 **Stream Method** (`select.<server>_stream_method`, Configuration section of the server device)
 
@@ -289,7 +307,7 @@ Resets (reconnects) the camera, the same as the Reset Camera service. Created fo
 
 Resets a camera automatically when its Problem sensor stays on.
 
-**Defaults** are set in the options (Configure -> *Auto reset defaults*) and used by every camera you haven't changed on its own:
+**Defaults** are set on the server device (`switch.<server>_default_auto_reset`, `..._default_auto_reset_reboot`, `number.<server>_default_auto_reset_delay` / `_attempts` / `_interval`) and used by every camera you haven't changed on its own. Setup's *Blue Iris features* page sets their starting values:
 
 | Default                | Built-in | Range       |
 | ---------------------- | -------- | ----------- |
@@ -299,7 +317,7 @@ Resets a camera automatically when its Problem sensor stays on.
 | Interval between resets | 90 s    | 30 - 900 s  |
 | Reboot the camera after the last reset | Off | On / Off |
 
-*Set all cameras back to these defaults* in the same section clears every camera's own values (it runs once and is not saved).
+The server's **Reset Cameras to Auto Reset Defaults** button clears every camera's own values.
 
 **Per camera**, the entities on its device (Configuration section) override the defaults for that camera only, value by value. Changes apply from the next poll (within 30 s) without a reload, and are kept across restarts. A camera keeps following the defaults for any value you haven't changed on it.
 
@@ -328,7 +346,7 @@ How it works, on every successful poll:
 
 It pauses while Connection Health is not `connected` and for the first 5 minutes of Blue Iris uptime, so an outage or a Blue Iris restart never triggers resets. Progress is on the Problem sensor (`auto_reset_state`: off, paused, idle, waiting, resetting, gave_up; `auto_reset_attempts`; `auto_reset_last`). After a Home Assistant restart the count starts over.
 
-Each camera gets one persistent notification (camera, problem, since, then the outcome), updated in place. Turn them off with *Persistent notifications* in Configure -> Auto reset defaults, or the server's Auto Reset Notifications switch (both are the same setting).
+Each camera gets one persistent notification (camera, problem, since, then the outcome), updated in place. Turn them off with the server's Auto Reset Notifications switch.
 
 Every step also fires the event `blueiris_auto_reset` with `type` (`reset`, `reboot`, `recovered`, `gave_up`), `rebooted`, `camera_id`, `camera_name`, `entity_id` (the camera entity), `reason`, `since`, `attempt`, `max_attempts` and `error`. For a phone alert with a snapshot when a camera gives up:
 
@@ -452,7 +470,7 @@ Each can be turned off in Configure -> Server.
 
 ###### Blue Iris log (admin user)
 
-New Blue Iris log messages are read on every poll. Each warning or error (or errors only, see Configure -> Blue Iris log) fires the event `blueiris_log` with `level`, `object` (camera or part of Blue Iris), `message`, `time` and `count`, and updates `sensor.<server>_last_message` (diagnostic). Messages from before Home Assistant started are not reported. For example, to be told about Blue Iris errors:
+New Blue Iris log messages are read on every poll. Each warning or error (or errors only, see the server's Blue Iris Log Reporting) fires the event `blueiris_log` with `level`, `object` (camera or part of Blue Iris), `message`, `time` and `count`, and updates `sensor.<server>_last_message` (diagnostic). Messages from before Home Assistant started are not reported. For example, to be told about Blue Iris errors:
 
 ```yaml
 triggers:

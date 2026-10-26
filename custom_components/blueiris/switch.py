@@ -64,6 +64,7 @@ def get_switch(hass: HomeAssistant, host: str, entity: EntityData):
     if entity.type in (
         AUTO_RESET_SERVER_SWITCH,
         AUTO_RESET_CAMERA_SWITCH,
+        AUTO_RESET_DEFAULT_SWITCH,
         PROBLEM_DETECTION_SWITCH,
     ):
         switch = BlueIrisAutoResetSwitch()
@@ -235,6 +236,9 @@ class BlueIrisAutoResetSwitch(SwitchEntity, BlueIrisEntity):
         elif self.entity.type == AUTO_RESET_CAMERA_SWITCH:
             key = self.entity.details[AUTO_RESET_SETTING]
             auto_reset.set_camera_value(self.entity.id, key, value)
+
+        elif self.entity.type == AUTO_RESET_DEFAULT_SWITCH:
+            auto_reset.set_default(self.entity.details[AUTO_RESET_SETTING], value)
 
         else:
             key = self.entity.details[AUTO_RESET_SETTING]

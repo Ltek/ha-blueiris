@@ -63,15 +63,17 @@ class BlueIrisAutoResetNumber(NumberEntity, BlueIrisEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         key = self.entity.details[AUTO_RESET_SETTING]
+        auto_reset = self.ha.auto_reset_manager
 
         if key == AUTO_RESET_KEY_ATTEMPTS:
             value = int(round(value))
 
-        self.ha.auto_reset_manager.set_camera_value(self.entity.id, key, value)
-
-        self.entity.state = self.ha.auto_reset_manager.camera_settings(
-            self.entity.id
-        )[key]
+        if self.entity.type == AUTO_RESET_DEFAULT_NUMBER:
+            auto_reset.set_default(key, value)
+            self.entity.state = auto_reset.defaults[key]
+        else:
+            auto_reset.set_camera_value(self.entity.id, key, value)
+            self.entity.state = auto_reset.camera_settings(self.entity.id)[key]
         self.async_write_ha_state()
 
         self.entity_manager.update()

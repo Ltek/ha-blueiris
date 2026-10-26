@@ -42,12 +42,67 @@ def get_select(hass: HomeAssistant, host: str, entity: EntityData):
         select = BlueIrisShieldSelect()
     elif entity.type == STREAM_METHOD:
         select = BlueIrisStreamMethodSelect()
+    elif entity.type == STREAM_TYPE_SELECT:
+        select = BlueIrisStreamTypeSelect()
+    elif entity.type == LOG_REPORTING_SELECT:
+        select = BlueIrisLogReportingSelect()
     else:
         select = BlueIrisLogLevelSelect()
 
     select.initialize(hass, host, entity, CURRENT_DOMAIN)
 
     return select
+
+
+class BlueIrisStreamTypeSelect(SelectEntity, BlueIrisEntity):
+    """H264 / H264 TS / MJPEG / RTSP / RTSP sub stream; applies at once."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_options = list(STREAM_VIDEO)
+
+    @property
+    def current_option(self):
+        return self.entity.state
+
+    @property
+    def icon(self):
+        return self.entity.icon
+
+    async def async_select_option(self, option: str) -> None:
+        self.ha.auto_reset_manager.set_stream_type(option)
+        _LOGGER.info(f"Stream type set to {option}")
+
+        self.entity.state = option
+        self.async_write_ha_state()
+
+        # Cameras restart their running stream with the new URL
+        self.entity_manager.update()
+        await self.ha.dispatch_all()
+
+
+class BlueIrisLogReportingSelect(SelectEntity, BlueIrisEntity):
+    """Which Blue Iris log messages become blueiris_log events."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_options = list(LOG_REPORTING_OPTIONS.values())
+
+    @property
+    def current_option(self):
+        return self.entity.state
+
+    @property
+    def icon(self):
+        return self.entity.icon
+
+    async def async_select_option(self, option: str) -> None:
+        value = next(k for k, v in LOG_REPORTING_OPTIONS.items() if v == option)
+        self.ha.auto_reset_manager.set_log_reporting(value)
+
+        self.entity.state = option
+        self.async_write_ha_state()
+
+        self.entity_manager.update()
+        await self.ha.dispatch_all()
 
 
 class BlueIrisStreamMethodSelect(SelectEntity, BlueIrisEntity):

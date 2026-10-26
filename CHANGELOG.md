@@ -1,5 +1,13 @@
 # Changelog
 
+## v2026.10.26.45
+
+- Move settings from the options to the server device, where they show their value and change at once: Stream Type select, Blue Iris Log Reporting select (Off / Warnings and errors / Errors only), Default Auto Reset and Default Auto Reset Reboot switches, Default Auto Reset Delay / Attempts / Interval numbers, and a Reset Cameras to Auto Reset Defaults button. On the first start they take their values from the options, then the options no longer have them
+- Remove *Support stream component* from the options; the HA Streaming switch on the server device replaces it
+- Add read-only server sensors (diagnostic): Host, Port, SSL, Username, Admin, Integration Version, Blue Iris Version, Blue Iris Support, Active Profile, Active Schedule, Cameras
+- The server device's Visit link opens Blue Iris' web interface
+- Changing the stream type restarts running streams with the new URL; with Fixed URL the startup session is kept for HTTP stream types
+
 ## v2026.10.26.44
 
 - Add stream types *RTSP* and *RTSP sub stream*: `rtsp://user:password@<server>:<port>/<camera>` (sub stream with `?decode=-1`) on Blue Iris' web server port, instead of Blue Iris' HLS playlist. No session, so the same for every Stream Method. The password is shown as `****` in the camera's `stream_source` attribute

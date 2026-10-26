@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.entity_registry import EntityRegistry, async_get
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.loader import async_get_integration
 
 from ..api.blue_iris_api import BlueIrisApi
 from ..helpers.advanced_configurations_generator import AdvancedConfigurationGenerator
@@ -48,6 +49,7 @@ class BlueIrisHomeAssistant:
         self._storage_manager = None
         self._auto_reset_manager: Optional[AutoResetManager] = None
         self.stream_monitor: Optional[StreamMonitor] = None
+        self.integration_version: Optional[str] = None
         self._last_motion_refresh: Optional[datetime] = None
         # Blue Iris log: newest entry time read, and the last reported entry
         self._log_after: Optional[int] = None
@@ -103,6 +105,8 @@ class BlueIrisHomeAssistant:
             self._device_manager = DeviceManager(self._hass, self)
             self._config_generator = AdvancedConfigurationGenerator(self._hass, self)
             self._auto_reset_manager = AutoResetManager(self._hass, self)
+            integration = await async_get_integration(self._hass, DOMAIN)
+            self.integration_version = str(integration.version)
             self.stream_monitor = StreamMonitor(self._hass, self)
 
             self._entity_registry = async_get(self._hass)
@@ -233,9 +237,9 @@ class BlueIrisHomeAssistant:
 
     async def _async_read_log(self):
         """Report new Blue Iris warnings / errors as blueiris_log events."""
-        config_data = self.config_data
+        reporting = self.entity_manager.log_reporting()
 
-        if not config_data.log_events or not self._api.data.get("admin", False):
+        if reporting == LOG_REPORTING_OFF or not self._api.data.get("admin", False):
             return
 
         if self._log_after is None:
@@ -244,7 +248,7 @@ class BlueIrisHomeAssistant:
             return
 
         entries = await self._api.load_log(self._log_after)
-        min_level = LOG_MIN_LEVELS[config_data.log_min_level]
+        min_level = LOG_MIN_LEVELS[reporting]
         seen = set()
 
         for entry in sorted(

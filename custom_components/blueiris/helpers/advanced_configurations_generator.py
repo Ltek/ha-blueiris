@@ -36,7 +36,7 @@ class AdvancedConfigurationGenerator:
             base_url,
             config_data.username,
             config_data.password_clear_text,
-            config_data.stream_type,
+            self._ha.entity_manager.stream_type(),
         )
 
         self.generate_ui_lovelace()
