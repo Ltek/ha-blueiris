@@ -4,268 +4,58 @@
 
 Home Assistant integration for Blue Iris Video Security Software, polling the Blue Iris JSON API and listening to its MQTT events.
 
-Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities. Fork changes are also offered upstream as PRs.
+Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities.
 
 Current build: **v2026.10.26.45** · full history in [CHANGELOG.md](CHANGELOG.md)
 
-<!-- SCREENSHOTS:START -->
-<table>
-  <tr>
-    <td align="center" valign="top" width="50%">
-      <a href="screenshots/01-setup-server-details.png"><img src="screenshots/01-setup-server-details.png" width="100%" alt="Setup server details"></a><br><sub>Setup server details</sub>
-    </td>
-    <td align="center" valign="top" width="50%">
-      <a href="screenshots/02-setup-features.png"><img src="screenshots/02-setup-features.png" width="100%" alt="Setup features"></a><br><sub>Setup features</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="50%">
-      <a href="screenshots/03-dashboard.png"><img src="screenshots/03-dashboard.png" width="100%" alt="Dashboard"></a><br><sub>Dashboard</sub>
-    </td>
-    <td align="center" valign="top" width="50%">
-      <a href="screenshots/04-server-device.png"><img src="screenshots/04-server-device.png" width="100%" alt="Server device"></a><br><sub>Server device</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="50%">
-      <a href="screenshots/05-camera-device.png"><img src="screenshots/05-camera-device.png" width="100%" alt="Camera device"></a><br><sub>Camera device</sub>
-    </td>
-    <td align="center" valign="top" width="50%">
-      <a href="screenshots/06-auto-reset-notification.png"><img src="screenshots/06-auto-reset-notification.png" width="100%" alt="Auto reset notification"></a><br><sub>Auto reset notification</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="50%">
-      <a href="screenshots/07-options.png"><img src="screenshots/07-options.png" width="100%" alt="Options"></a><br><sub>Options</sub>
-    </td>
-    <td></td>
-  </tr>
-</table>
-<!-- SCREENSHOTS:END -->
-
 ## Features
 
-- **Camera** per Blue Iris camera, group and system camera (All, Cycle), with live attributes (FPS, online, no signal count, error, ...)
-- **Streams**: H264 (HLS), H264 TS, MJPEG, RTSP or RTSP sub stream, through Home Assistant's stream component or an MJPEG view
-- **Problem binary sensor** per camera: on when Blue Iris reports no signal, offline or a stalled stream
-- **Reset button** per camera
-- **Camera sensors** per camera: Bitrate (main and sub stream), Last Alert; optional Recording, Triggered, Alerting
-- **Camera controls** per camera: Enabled, Pause, Manual Recording, Snapshot to Database; optional Motion Detection and Reboot
-- **Auto reset** per camera: resets cameras whose Problem sensor stays on, with per-camera delay / attempts / interval you can change live
-- **Binary sensors** per camera from MQTT: Motion, Audio, Connectivity, DIO, External, plus a server-level Alerts sensor
-- **Sensors** for the server: Connection Health, Uptime, CPU, Memory, free space per drive, Warnings, Connections
-- **Switches** for Blue Iris profiles and schedules (admin user required)
-- **Server controls**: Shield (Armed / Disarmed / Arming), Profile Hold, Restart Web Server, Restart AI
+### New in this fork
+
+**Camera health and recovery**
+- **Problem sensor** per camera: on for no signal, offline or a stalled stream (below 1 FPS), from Blue Iris' own camera status on every poll; unavailable while the server is down or just started, so it never acts on stale data
+- **Auto reset**: resets a camera whose Problem sensor stays on, with per-camera delay, attempts and interval changed live; optional reboot of the camera after the last reset; one persistent notification per camera and a `blueiris_auto_reset` event
+- **Problem Detection** switch per camera (or `#ha:no-detection` in the camera's Notes in Blue Iris) for battery, solar or motion-only cameras
+- **Reset button** per camera and the `blueiris.reset_camera` service
+
+**Camera controls and sensors**
+- **Controls** per camera: Enabled, Pause, Manual Recording, Snapshot to Database; optional Motion Detection and Reboot
+- **Sensors** per camera: Bitrate (main and sub stream), Last Alert; optional Recording, Triggered, Alerting
+- **Services**: `blueiris.snapshot_to_database`, and `blueiris.current_camera_snapshot`, which saves the current still for notifications
+- Each camera's device page links to the camera's own web interface
+
+**Server**
+- **Status**: Connection Health, Uptime, CPU, Memory, free space per drive, Warnings, Connections, plus read-only Host, Port, SSL, Username, Admin, Integration Version, Blue Iris Version and Support, Active Profile and Schedule, Cameras
+- **Controls**: Shield (Armed / Disarmed / Arming), Profile Hold, Restart Web Server, Restart AI, Reload Integration
 - **Blue Iris log**: new warnings and errors as `blueiris_log` events and a Last Message sensor
-- **Services**: Trigger Camera, Move to Preset, Reset Camera, Snapshot to Database, Current Camera Snapshot
-- **Log Level** select on the server device to see and change the log level live
-- **HA Streaming** switch on the server device: HA's own stream (HLS / WebRTC) or an MJPEG view from still images, switched live
-- **Stream Method** select on the server device to switch how stream URLs are built, live
-- **Stream monitoring**: `blueiris_stream` events, per-camera stream status and a Stream Health sensor per Stream Method
-- **Reload Integration** button on the server device
-- **Diagnostics** download for bug reports
+- **Settings on the server device**, shown and changed live: Stream Type, HA Streaming, Stream Method, Stream Monitoring, Log Level, Blue Iris log reporting, auto reset defaults
+
+**Streaming**
+- Stream types H264 (HLS), H264 TS, MJPEG, **RTSP** and **RTSP sub stream**
+- **HA Streaming** switch: Home Assistant's own stream (HLS / WebRTC) or the MJPEG view, switched without a restart
+- **Stream Method**: how session URLs are kept up to date (Fixed URL, Follow session, Follow session + audio, Login in URL)
+- **Stream monitoring** (optional): `blueiris_stream` events and a Stream Health sensor per Stream Method
+
+**Setup**
+- Options as All / None / Choose… per section with item counts and checkbox lists; new cameras included automatically under All
+- A features page during setup
+- Diagnostics download with host, credentials, session and location redacted
+
+### From the original integration
+
+- **Camera** per Blue Iris camera, group and system camera (All, Cycle), with live attributes (FPS, online, no signal count, error, ...)
+- **Binary sensors** per camera from MQTT: Motion, Audio, Connectivity, DIO, External, plus a server-level Alerts sensor
+- **Switches** for Blue Iris profiles and schedules (admin user)
+- **Services**: Trigger Camera, Move to Preset
 - SSL with self-signed certificates
 
-## New in this fork
+## Installation
 
-- Problem binary sensor per camera (no signal / offline / stalled), computed from Blue Iris' own camera status on every poll and unavailable while the server is down or just started, so it never acts on stale data
-- Reset button per camera
-- Auto reset: per-camera switch plus Delay, Attempts and Interval numbers, changed live without a reload and kept across restarts; persistent notification per camera and a `blueiris_auto_reset` event
-- `blueiris.reset_camera` service: resets (reconnects) a frozen or "No signal" camera, the same as Blue Iris' Reset command. Raises an error with Blue Iris' reason when it fails
-- `blueiris.current_camera_snapshot` service: saves the current still to `media/blueiris/` and returns a `/media/local` URL for notifications
-- Connection Health sensor: `connected`, `server_unreachable`, `auth_failed` or `error`, so automations can ignore stale camera data while the server is down
-- Uptime sensor: Blue Iris software uptime, e.g. to hold off automations right after a Blue Iris restart
-- `H264 TS` stream type (`temp.ts`), which can work better for group and cycle cameras
-- Diagnostics download with host, credentials, session and location redacted
-- Easier options: All / None / Choose… per section with item counts, checkbox lists instead of drop-downs, and new cameras included automatically under All
+Click the HACS button above, or in HACS → ⋮ → Custom repositories add `https://github.com/Ltek/ha-blueiris` as an **Integration**, then download "Blue Iris (Ltek)" and restart Home Assistant. Add it under Settings → Devices & Services.
 
-## How to
+Replacing an existing elad-bar install: remove that repository inside HACS first (don't delete the integration under Settings → Devices & Services), then add this one. The config entry and entities carry over.
 
-#### Requirements
-
-- BlueIris Server available with a user
-- To control profiles and schedules, and to use Reset Camera, the user must have 'admin' level permissions
-- MQTT Integration is optional - it will allow listening to BlueIris events
-- Read the [BlueIris manual](docs/blueiris-server.md) for this component
-
-#### Installations via HACS
-
-Click the button at the top, or in HACS → ⋮ → Custom repositories add `https://github.com/Ltek/ha-blueiris` as an **Integration**, then download "Blue Iris (Ltek)" and restart Home Assistant.
-
-Replacing an existing elad-bar install: remove that repository inside HACS first (do not delete the integration under Settings → Devices & Services), then add this one. The config entry and entities carry over.
-
-#### Integration settings
-
-###### Basic configuration (Configuration -> Integrations -> Add BlueIris)
-
-| Fields name | Type      | Required | Default   | Description                                   |
-| ----------- | --------- | -------- | --------- | --------------------------------------------- |
-| Host        | Texbox    | +        | None      | Hostname or IP address of the BlueIris server |
-| Port        | Textbox   | +        | 0         | HTTP Port to access BlueIris server           |
-| SSL         | Check-box | +        | Unchecked | Is SSL supported?                             |
-| Username    | Textbox   | -        |           | Username of admin user for BlueIris server    |
-| Password    | Textbox   | -        |           | Password of admin user for BlueIris server    |
-
-###### Integration options (Settings -> Devices & Services -> BlueIris -> Configure)
-
-The options are two pages.
-
-**Setup.** After the server details, setup shows a *Blue Iris features* page with the Server sensors and the Auto reset defaults. Everything per camera is set in Configure afterwards.
-
-**Page 1 - which components to create.** The choices are grouped into sections: *Cameras* (camera and Problem sensors, open), *MQTT sensors* and *Profiles and schedules* (collapsed, shown only when they apply). Each choice has a drop-down with three choices; the labels show how many items the section has and how many are currently selected, e.g. `Choose… (3 of 15 selected)`:
-
-| Choice    | Effect                                                                                  |
-| --------- | --------------------------------------------------------------------------------------- |
-| All (n)   | Creates the component for every item, including cameras added to Blue Iris later        |
-| None (0)  | Turns the section off; no entities are created for it                                    |
-| Choose…   | Opens a checkbox list for that section on page 2                                         |
-
-| Section              | Items                                    | Shown when                     |
-| -------------------- | ---------------------------------------- | ------------------------------ |
-| Camera controls      | One choice per control (see Camera controls); cameras, not groups | User has admin rights |
-| Camera sensors       | One choice per sensor (see Camera sensors); cameras, not groups | Always |
-| Camera components    | All cameras, groups and system cameras   | Always                         |
-| Problem sensors      | Cameras (not groups or system cameras)   | Always                         |
-| Motion sensors       | Non-system cameras                       | MQTT integration is set up     |
-| Connectivity sensors | Non-system cameras                       | MQTT integration is set up     |
-| Audio sensors        | Non-system cameras that support audio    | MQTT integration is set up     |
-| DIO sensors          | Non-system cameras                       | MQTT integration is set up     |
-| External sensors     | Non-system cameras                       | MQTT integration is set up     |
-| Profile switches     | Blue Iris profiles                       | User has admin rights          |
-| Schedule switches    | Blue Iris schedules                      | User has admin rights          |
-
-A section that is not shown keeps its saved setting.
-
-Collapsed groups below hold the other settings:
-
-| Group               | Fields                                                                                                                       |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Server              | Sensors: CPU, Memory, Free space per drive, Warnings, Connections. Controls: Shield, Profile Hold, Restart Web Server, Restart AI. Each on / off, all on by default |
-| Connection          | Host, Port, SSL, Username, Password, Clear credentials (workaround to clear the username and password; not stored as option) |
-| Logging             | Log level - Default on Startup, Generate configuration files                                                                 |
-
-Stream type, HA Streaming, Stream Method, Blue Iris log reporting and the auto reset defaults are on the server device instead (see *Server device settings*). On the first start of v2026.10.26.45 they take the values they had in the options.
-
-**Page 2 - choose items.** Only appears when at least one section is set to `Choose…`. Each of those sections is a group with a checkbox per item, pre-filled with the current selection.
-
-**Integration's title**
-Title will be extracted from BlueIris server's configuration, it will be set upon adding the server, and after every Option's change
-
-Note that in case there are 2 integrations with the same integration's title, components will be overwritten by both integrations.
-
-###### Server device settings
-
-Settings that change how the integration behaves are entities on the server device, in its Configuration section. Each shows its current value, changes at once without a reload, and is kept across restarts.
-
-| Entity | What it sets |
-| ------ | ------------ |
-| `select.<server>_stream_type` | Stream type (see below) |
-| `switch.<server>_ha_streaming` | HA's own stream or the MJPEG view |
-| `select.<server>_stream_method` | How session URLs are kept up to date |
-| `switch.<server>_stream_monitoring` | Stream monitoring on / off |
-| `select.<server>_blue_iris_log_reporting` | Off / Warnings and errors / Errors only (admin) |
-| `switch.<server>_default_auto_reset`, `..._default_auto_reset_reboot` | Auto reset defaults: on, reboot after the last reset (admin) |
-| `number.<server>_default_auto_reset_delay` / `_attempts` / `_interval` | Auto reset defaults (admin) |
-| `button.<server>_reset_cameras_to_auto_reset_defaults` | Clears every camera's own auto reset values (admin) |
-| `select.<server>_log_level`, `switch.<server>_auto_reset`, `..._auto_reset_notifications`, Restart and Reload buttons | As before |
-
-Read-only values in the Diagnostic section: Host, Port, SSL, Username (never the password), Admin (whether that user has admin rights in Blue Iris), Integration Version (the build installed), Blue Iris Version, Blue Iris Support, Active Profile, Active Schedule and Cameras (with groups and system cameras as attributes). The server device's **Visit** link opens Blue Iris' web interface.
-
-**Stream type RTSP** (server device -> Stream Type)
-
-| Stream type      | URL Home Assistant opens                                  |
-| ---------------- | --------------------------------------------------------- |
-| H264 (default)   | `http://<server>/h264/<camera>/temp.m3u8?session=...` - Blue Iris' HLS playlist |
-| H264 TS          | `http://<server>/h264/<camera>/temp.ts?session=...` - MPEG transport stream |
-| RTSP             | `rtsp://<user>:<password>@<server>/<camera>` - RTSP on Blue Iris' web server port |
-| RTSP sub stream  | Same with `?decode=-1`: the camera's sub stream, much lighter for dashboards with many cameras |
-
-RTSP reads the camera's H264 without Blue Iris' HLS step, which is what Home Assistant's stream handles best; try it if the log shows `Error opening stream (Server returned 5XX ...)` for `temp.m3u8`. It uses the integration's username and password (escaped; Home Assistant hides them in its stream logs, and the camera's `stream_source` attribute shows `****`), has no session, and so is the same for every Stream Method. It is plain `rtsp://` even when the integration uses SSL. Only used with HA Streaming on. A new stream type is used by cameras after Reload Integration or a restart.
-
-**HA Streaming** (`switch.<server>_ha_streaming`, Configuration section of the server device; only when HA's `stream` integration is loaded, as with `default_config`)
-
-| Switch | What camera live views get                                                                                 |
-| ------ | ---------------------------------------------------------------------------------------------------------- |
-| Off    | An MJPEG view that Home Assistant builds by fetching the camera's still image from Blue Iris over and over (once per frame at the camera's FPS) |
-| On     | Home Assistant's stream: one H264 connection per camera to Blue Iris, played as HLS (or WebRTC when a WebRTC provider such as go2rtc is set up) |
-
-Switches at once for every camera, no restart: cameras change their supported features, and running HA streams are stopped when it is turned off. Open dashboards may need a refresh to pick it up. Kept across restarts. With many cameras on one dashboard, *On* puts far less load on Blue Iris than the MJPEG view. Stream Method and Stream Monitoring only apply while it is on.
-
-**Stream Method** (`select.<server>_stream_method`, Configuration section of the server device)
-
-Switches how camera entities build their stream and still-image URLs, without a restart. Running streams are restarted with the new URL straight away; the choice is kept across restarts.
-
-| Method                  | Behaviour                                                                                          |
-| ----------------------- | -------------------------------------------------------------------------------------------------- |
-| Fixed URL (default)     | The URL made when the camera entity was created, with that session. The original elad-bar behaviour: running streams are never touched, except once when you switch to Fixed URL from another method |
-| Follow session          | The URL always uses the current Blue Iris session; when the integration logs in again, every running stream is restarted with the new URL (the method used by kramttocs/ha-blueiris) |
-| Follow session + audio  | As Follow session, and adds `audio=1` for cameras that have audio                                  |
-| Login in URL            | No session: the integration's username and password go in the URL (`http://user:password@host/...`, sent as HTTP Basic auth). Never goes stale, so streams are never restarted. Still images use Basic auth too. Without a username and password it works like Follow session |
-
-The attribute `stream_restarts` counts streams restarted with a new URL since start. Follow session restarts every running stream on each new login, so a server that drops sessions often will make streams restart often. Try one method for a while, then the other.
-
-With *Login in URL* the password is part of the stream URL Home Assistant opens. Home Assistant hides it in its stream logs, but anything else that shows the stream source (for example a custom card, or a log at debug level from another integration) could show it. Blue Iris must accept HTTP Basic auth for streams; if the live view stays black with this method, it doesn't, and you should switch back.
-
-**Stream monitoring** (`switch.<server>_stream_monitoring`, Configuration section of the server device, **off by default**, kept across restarts)
-
-While it is off, none of the monitoring runs: no checks, no events, no extra camera attributes, and no Stream Health sensor. While it is on, every open stream (someone watching, or preloaded) is checked every 2 s for new video. Each change fires the event `blueiris_stream` and writes an info line to the Home Assistant log:
-
-| `type`      | When                                                                                         |
-| ----------- | -------------------------------------------------------------------------------------------- |
-| `restart`   | The integration gave the stream a new URL; `reason` is `method_change` or `session_change`   |
-| `connected` | Video is flowing; `seconds` since the stream was opened, restarted or dropped                |
-| `dropped`   | No new video for 20 s while it was connected                                                 |
-| `failed`    | Still no video 60 s after opening, a restart or a drop                                       |
-
-Each event also has `camera_id`, `camera_name`, `entity_id`, `method` (the Stream Method at the time) and `reason` (`opened`, `method_change`, `session_change`, `stalled`).
-
-Camera entities get `stream_status` (idle, connecting, connected, down, failed), `stream_last_connect_seconds`, `stream_restarts`, `stream_drops` and `stream_failures`.
-
-`sensor.<server>_stream_health` (diagnostic, only while monitoring is on) is the number of open streams without video, with one attribute per Stream Method: restarts, connected, dropped, failed and average_connect_seconds. Counts start over when Home Assistant restarts.
-
-It can see whether video reaches Home Assistant and how fast it comes back; it can't see delay or buffering in the browser's player. It only sees streams Home Assistant opens itself (HLS live view); still-image cards and players that bypass Home Assistant's stream (for example WebRTC through go2rtc) are not seen. The log lines are at info level: set the server's Log Level to Info to see them.
-
-**Reload Integration** (`button.<server>_reload_integration`, Configuration section of the server device) reloads the integration, the same as Devices & Services -> Blue Iris -> Reload: it logs in again and recreates the entities and streams. Entities, settings and statistics of the stream monitor in memory start over.
-
-**Log level**
-
-- *Log level - Default on Startup* (options, Streams and logging) is applied every time Home Assistant starts or the integration reloads. `Default` keeps Home Assistant's own logging setup (normally Warning, or whatever `logger:` in `configuration.yaml` says)
-- The server's **Log Level** entity (`select.<server>_log_level`, Configuration section of the server device) shows the level actually in effect, including changes made with HA's *Enable debug logging* or `logger.set_level`, and changes it immediately without a reload. It is not saved: the next restart goes back to the Default on Startup level, so a forgotten Debug setting doesn't keep filling the log
-- Neither needs the `logger:` integration
-
-###### Auto-generating configurations files:
-
-Will create YAML with all the configurations in the config directory under blueiris.advanced_configurations.yaml:
-
-- Input select (drop-downs)
-- Script to cast based on the selection
-- UI of all the components created by BlueIris based on the description above
-
-[Example of configuration output](docs/configs/casting/configuration.yaml)
-
-###### Configuration validations
-
-After submitting the form either for a new integration instance or updating options, the component will try to login to the BlueIris server to verify the new settings.
-
-The following errors can appear:
-
-- BlueIris integration ({host}) already configured
-- Invalid administrator credentials - credentials are invalid or user is not an admin
-- Invalid server details - Cannot reach the server
-
-###### Diagnostics
-
-Settings -> Devices & Services -> BlueIris -> ⋮ -> Download diagnostics produces a JSON file for bug reports: login state, server version and status, the stream-related fields of every camera (online, no signal, FPS, error) and the entity list. Host, username, password, session ID, license, location and stream / image URLs are redacted.
-
-###### Encryption key got corrupted
-
-If a persistent notification popped up with the following message:
-
-```
-Encryption key got corrupted, please remove the integration and re-add it
-```
-
-It means that the encryption key was modified from outside the code and the integration will need to be removed and re-added.
+Requirements, setup, options and the server device settings are described in [SETUP.md](SETUP.md).
 
 ## Components
 
@@ -580,10 +370,45 @@ Currently the Stream Component is a bit too ragged to use to cast Blue Iris vide
 
 [Example of configuration output](docs/configs/casting/ui-lovelace.yaml)
 
-## Screenshots
-
-The gallery at the top is taken from a real Home Assistant running this integration against a made-up Blue Iris server (`tools/screenshots/fake_blue_iris.py`; no real cameras or data). To make them again: `PYTHON=<venv with homeassistant, home-assistant-frontend, pillow> tools/screenshots/run.sh` (needs Node with `playwright-core` and its Chromium). Push the PNGs in `screenshots/`; the *Update Screenshot Grid* workflow rebuilds the gallery.
-
 ## Contributors
 
 <a href="https://github.com/darkgrue">@darkgrue</a>
+
+## Screenshots
+
+These are taken from a real Home Assistant running this integration against a made-up Blue Iris server (`tools/screenshots/fake_blue_iris.py`; no real cameras or data). To make them again: `PYTHON=<venv with homeassistant, home-assistant-frontend, pillow> tools/screenshots/run.sh` (needs Node with `playwright-core` and its Chromium). Push the PNGs in `screenshots/`; the *Update Screenshot Grid* workflow rebuilds the gallery.
+
+<!-- SCREENSHOTS:START -->
+<table>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <a href="screenshots/01-setup-server-details.png"><img src="screenshots/01-setup-server-details.png" width="100%" alt="Setup server details"></a><br><sub>Setup server details</sub>
+    </td>
+    <td align="center" valign="top" width="50%">
+      <a href="screenshots/02-setup-features.png"><img src="screenshots/02-setup-features.png" width="100%" alt="Setup features"></a><br><sub>Setup features</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <a href="screenshots/03-dashboard.png"><img src="screenshots/03-dashboard.png" width="100%" alt="Dashboard"></a><br><sub>Dashboard</sub>
+    </td>
+    <td align="center" valign="top" width="50%">
+      <a href="screenshots/04-server-device.png"><img src="screenshots/04-server-device.png" width="100%" alt="Server device"></a><br><sub>Server device</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <a href="screenshots/05-camera-device.png"><img src="screenshots/05-camera-device.png" width="100%" alt="Camera device"></a><br><sub>Camera device</sub>
+    </td>
+    <td align="center" valign="top" width="50%">
+      <a href="screenshots/06-auto-reset-notification.png"><img src="screenshots/06-auto-reset-notification.png" width="100%" alt="Auto reset notification"></a><br><sub>Auto reset notification</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <a href="screenshots/07-options.png"><img src="screenshots/07-options.png" width="100%" alt="Options"></a><br><sub>Options</sub>
+    </td>
+    <td></td>
+  </tr>
+</table>
+<!-- SCREENSHOTS:END -->
