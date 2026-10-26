@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.10.26.43
+
+- Restore: the integration code is back to v2026.10.25.41 (Stream Method, Stream Monitoring, Reload Integration button, HA Streaming switch). The stream problems also happened with the v2026.10.24.36 code (build 42), so they were not caused by these builds
+- The entities from builds 37 to 41 come back; the HA Streaming switch and Stream Method keep the values they had before the rollback
+
 ## v2026.10.25.42
 
 - Rollback: the integration code is back to v2026.10.24.36, the last build that kept streams stable. Builds 37 to 41 (Stream Method, Stream Monitoring, Reload button, HA Streaming switch) are kept on the `archive/v2026.10.25.41` branch and the `v2026.10.25.41` tag, not in this build

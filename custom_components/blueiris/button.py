@@ -40,6 +40,8 @@ def get_button(hass: HomeAssistant, host: str, entity: EntityData):
         button = BlueIrisCameraControlButton()
     elif entity.type == SERVER_CONTROL:
         button = BlueIrisServerButton()
+    elif entity.type == RELOAD_BUTTON:
+        button = BlueIrisReloadButton()
     else:
         button = BlueIrisResetButton()
 
@@ -70,6 +72,21 @@ class BlueIrisCameraControlButton(ButtonEntity, BlueIrisEntity):
         except BlueIrisCommandError as ex:
             _LOGGER.error(str(ex))
             raise HomeAssistantError(str(ex)) from ex
+
+
+class BlueIrisReloadButton(ButtonEntity, BlueIrisEntity):
+    """Reload the integration (same as Devices & Services -> Reload)."""
+
+    @property
+    def icon(self):
+        return self.entity.icon
+
+    async def async_press(self) -> None:
+        entry_id = self.ha.config_manager.config_entry.entry_id
+        _LOGGER.info("Reloading the Blue Iris integration")
+
+        # The reload unloads this button too; don't wait for it here
+        self.hass.async_create_task(self.hass.config_entries.async_reload(entry_id))
 
 
 class BlueIrisServerButton(ButtonEntity, BlueIrisEntity):

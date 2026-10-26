@@ -37,6 +37,18 @@ async def async_unload_entry(_hass, config_entry):
 
 
 def get_switch(hass: HomeAssistant, host: str, entity: EntityData):
+    if entity.type == HA_STREAMING_SWITCH:
+        switch = BlueIrisHaStreamingSwitch()
+        switch.initialize(hass, host, entity, CURRENT_DOMAIN)
+        switch._attr_entity_category = EntityCategory.CONFIG
+        return switch
+
+    if entity.type == STREAM_MONITORING_SWITCH:
+        switch = BlueIrisStreamMonitoringSwitch()
+        switch.initialize(hass, host, entity, CURRENT_DOMAIN)
+        switch._attr_entity_category = EntityCategory.CONFIG
+        return switch
+
     if entity.type == SERVER_CONTROL:
         switch = BlueIrisProfileHoldSwitch()
         switch.initialize(hass, host, entity, CURRENT_DOMAIN)
@@ -61,6 +73,67 @@ def get_switch(hass: HomeAssistant, host: str, entity: EntityData):
     switch.initialize(hass, host, entity, CURRENT_DOMAIN)
 
     return switch
+
+
+class BlueIrisHaStreamingSwitch(SwitchEntity, BlueIrisEntity):
+    """On: cameras offer HA's stream (HLS / WebRTC). Off: MJPEG from stills.
+
+    Applies at once to every camera; kept across restarts.
+    """
+
+    @property
+    def is_on(self):
+        return bool(self.entity.state)
+
+    @property
+    def icon(self):
+        return self.entity.icon
+
+    async def async_turn_on(self, **kwargs):
+        await self._async_set(True)
+
+    async def async_turn_off(self, **kwargs):
+        await self._async_set(False)
+
+    async def _async_set(self, value: bool):
+        self.ha.auto_reset_manager.set_ha_streaming(value)
+        _LOGGER.info(f"HA streaming {'on' if value else 'off'}")
+
+        self.entity.state = value
+        self.async_write_ha_state()
+
+        # Cameras update their supported features; HA then updates what
+        # the dashboard may use for them
+        self.entity_manager.update()
+        await self.ha.dispatch_all()
+
+
+class BlueIrisStreamMonitoringSwitch(SwitchEntity, BlueIrisEntity):
+    """Stream monitoring on / off (off by default; kept across restarts)."""
+
+    @property
+    def is_on(self):
+        return bool(self.entity.state)
+
+    @property
+    def icon(self):
+        return self.entity.icon
+
+    async def async_turn_on(self, **kwargs):
+        await self._async_set(True)
+
+    async def async_turn_off(self, **kwargs):
+        await self._async_set(False)
+
+    async def _async_set(self, value: bool):
+        self.ha.auto_reset_manager.set_stream_monitoring(value)
+        self.ha.stream_monitor.apply_enabled()
+
+        self.entity.state = value
+        self.async_write_ha_state()
+
+        self.entity_manager.update()
+        await self.ha.dispatch_all()
 
 
 class BlueIrisProfileHoldSwitch(SwitchEntity, BlueIrisEntity):

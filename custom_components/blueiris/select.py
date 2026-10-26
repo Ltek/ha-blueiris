@@ -40,12 +40,40 @@ def get_select(hass: HomeAssistant, host: str, entity: EntityData):
         select = BlueIrisPauseSelect()
     elif entity.type == SERVER_CONTROL:
         select = BlueIrisShieldSelect()
+    elif entity.type == STREAM_METHOD:
+        select = BlueIrisStreamMethodSelect()
     else:
         select = BlueIrisLogLevelSelect()
 
     select.initialize(hass, host, entity, CURRENT_DOMAIN)
 
     return select
+
+
+class BlueIrisStreamMethodSelect(SelectEntity, BlueIrisEntity):
+    """How cameras build their stream URL; applies to running streams."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_options = STREAM_METHODS
+
+    @property
+    def current_option(self):
+        return self.entity.state
+
+    @property
+    def icon(self):
+        return self.entity.icon
+
+    async def async_select_option(self, option: str) -> None:
+        self.ha.auto_reset_manager.set_stream_method(option)
+        _LOGGER.info(f"Stream method set to {option}")
+
+        self.entity.state = option
+        self.async_write_ha_state()
+
+        # Cameras pick it up and restart their running stream if needed
+        self.entity_manager.update()
+        await self.ha.dispatch_all()
 
 
 class BlueIrisShieldSelect(SelectEntity, BlueIrisEntity):

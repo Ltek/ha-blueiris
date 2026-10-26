@@ -141,6 +141,8 @@ class EntityManager:
         self.last_problem_since = {}
         # camera id -> last Pause choice, to show a timed pause by its name
         self.pause_choice = {}
+        # Running streams restarted with a new URL (session change or method switch)
+        self.stream_restarts = 0
 
     @property
     def entity_registry(self) -> EntityRegistry:
@@ -278,6 +280,9 @@ class EntityManager:
 
         self.generate_auto_reset_server_switches(system_device_name, is_admin)
         self.generate_log_level_select(system_device_name)
+        self.generate_stream_method_select(system_device_name)
+        self.generate_stream_health_sensor(system_device_name)
+        self.generate_reload_button(system_device_name)
         self.generate_server_controls(system_device_name, is_admin)
         self.generate_log_sensor(system_device_name, is_admin)
 
@@ -834,6 +839,107 @@ class EntityManager:
             self.set_entity(DOMAIN_SENSOR, entity.name, entity)
         except Exception as ex:
             self.log_exception(ex, "Failed to generate Blue Iris log sensor")
+
+    def ha_streaming(self) -> bool:
+        auto_reset = self.ha.auto_reset_manager
+        if DOMAIN_STREAM not in self.hass.data:
+            return False
+        if auto_reset is None:
+            return bool(self.config_data.support_stream)
+        return auto_reset.ha_streaming
+
+    def stream_method(self) -> str:
+        auto_reset = self.ha.auto_reset_manager
+        return DEFAULT_STREAM_METHOD if auto_reset is None else auto_reset.stream_method
+
+    def generate_stream_method_select(self, system_device_name):
+        try:
+            name = f"{self.integration_title} {STREAM_METHOD_NAME}"
+            entity = self._config_entity(
+                DOMAIN_SELECT,
+                name,
+                None,
+                system_device_name,
+                STREAM_METHOD,
+                self.stream_method(),
+                STREAM_METHOD_ICON,
+                {},
+            )
+            entity.attributes["stream_restarts"] = self.stream_restarts
+            self.set_entity(DOMAIN_SELECT, name, entity)
+        except Exception as ex:
+            self.log_exception(ex, "Failed to generate stream method select")
+
+    def generate_stream_health_sensor(self, system_device_name):
+        try:
+            monitor = self.ha.stream_monitor
+            auto_reset = self.ha.auto_reset_manager
+
+            if auto_reset is not None and DOMAIN_STREAM in self.hass.data:
+                name = f"{self.integration_title} {HA_STREAMING_NAME}"
+                streaming = self._config_entity(
+                    DOMAIN_SWITCH,
+                    name,
+                    None,
+                    system_device_name,
+                    HA_STREAMING_SWITCH,
+                    auto_reset.ha_streaming,
+                    HA_STREAMING_ICON,
+                    {},
+                )
+                self.set_entity(DOMAIN_SWITCH, name, streaming)
+
+            if auto_reset is not None:
+                name = f"{self.integration_title} {STREAM_MONITORING_NAME}"
+                switch = self._config_entity(
+                    DOMAIN_SWITCH,
+                    name,
+                    None,
+                    system_device_name,
+                    STREAM_MONITORING_SWITCH,
+                    auto_reset.stream_monitoring,
+                    STREAM_MONITORING_ICON,
+                    {},
+                )
+                self.set_entity(DOMAIN_SWITCH, name, switch)
+
+            if monitor is None or not monitor.enabled:
+                return
+
+            entity = self._server_sensor(
+                system_device_name,
+                STREAM_HEALTH_NAME,
+                monitor.problem_count(),
+                STREAM_HEALTH_ICON,
+                {
+                    ENTITY_SENSOR_CATEGORY: EntityCategory.DIAGNOSTIC,
+                    ENTITY_SENSOR_STATE_CLASS: SensorStateClass.MEASUREMENT,
+                },
+                {"stream_method": self.stream_method(), **monitor.summary()},
+            )
+            self.set_entity(DOMAIN_SENSOR, entity.name, entity)
+        except Exception as ex:
+            self.log_exception(ex, "Failed to generate stream health sensor")
+
+    def generate_reload_button(self, system_device_name):
+        try:
+            name = f"{self.integration_title} {RELOAD_NAME}"
+            entity = self._config_entity(
+                DOMAIN_BUTTON,
+                name,
+                None,
+                system_device_name,
+                RELOAD_BUTTON,
+                None,
+                RELOAD_ICON,
+                {
+                    ENTITY_CONFIG_CATEGORY: True,
+                    ENTITY_BUTTON_DEVICE_CLASS: ButtonDeviceClass.RESTART,
+                },
+            )
+            self.set_entity(DOMAIN_BUTTON, name, entity)
+        except Exception as ex:
+            self.log_exception(ex, "Failed to generate reload button")
 
     def generate_log_level_select(self, system_device_name):
         try:
