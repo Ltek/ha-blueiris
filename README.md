@@ -1,63 +1,71 @@
 # Blue Iris (Ltek)
 
-[![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Ltek&repository=ha-blueiris&category=integration)
-
-Home Assistant integration for Blue Iris Video Security Software, polling the Blue Iris JSON API and listening to its MQTT events.
-
-Ltek fork of [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain, so it replaces an existing install in place with the same entities.
+Blue Iris (Ltek) is a fork of the no-longer maintained [elad-bar/ha-blueiris](https://github.com/elad-bar/ha-blueiris). It keeps the same `blueiris` domain and **is a direct in-replace upgrade**: your config entry and existing entities stay as they are and you get a ton more features and controls (if you choose to).
 
 Current build: **v2026.10.26.45** · full history in [CHANGELOG.md](CHANGELOG.md)
 
-## Features
+[![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Ltek&repository=ha-blueiris&category=integration)
 
-### New in this fork
+![Dashboard](screenshots/03-dashboard.png)
 
-**Camera health and recovery**
-- **Problem sensor** per camera: on for no signal, offline or a stalled stream (below 1 FPS), from Blue Iris' own camera status on every poll; unavailable while the server is down or just started, so it never acts on stale data
-- **Auto reset**: resets a camera whose Problem sensor stays on, with per-camera delay, attempts and interval changed live; optional reboot of the camera after the last reset; one persistent notification per camera and a `blueiris_auto_reset` event
-- **Problem Detection** switch per camera (or `#ha:no-detection` in the camera's Notes in Blue Iris) for battery, solar or motion-only cameras
-- **Reset button** per camera and the `blueiris.reset_camera` service
+## Why I forked it...
+
+Several of my 15 cameras kept dropping to "No signal", often would not reconnect until I forced a reload/reset in Blue Iris. I wanted to fix these streams and also have the integration automatically detect problems and fix it. It grew from there.
+
+## NEW in this fork...
+
+**Camera health and auto reset**
+- **Problem sensor per camera:** on for *no signal*, *offline* or a *stalled* stream (below 1 FPS), based on Blue Iris' own camera status. It goes unavailable while the server is down or has just started, so automations never act on stale data.
+- **Auto reset:** resets a camera when its Problem sensor stays on. Delay, number of attempts and interval can be set per camera and changed live. It can also reboot the camera after the last reset. You get one persistent notification per camera (problem, since when, outcome) and a `blueiris_auto_reset` event you can use for phone alerts.
+- **Problem Detection switch per camera** for battery, solar or motion-only cameras. You can also put `#ha:no-detection` in the camera's Notes in Blue Iris.
+- **Reset button** per camera, and a `blueiris.reset_camera` service.
+
+![Auto reset notification](screenshots/06-auto-reset-notification.png)
 
 **Camera controls and sensors**
-- **Controls** per camera: Enabled, Pause, Manual Recording, Snapshot to Database; optional Motion Detection and Reboot
-- **Sensors** per camera: Bitrate (main and sub stream), Last Alert; optional Recording, Triggered, Alerting
-- **Services**: `blueiris.snapshot_to_database`, and `blueiris.current_camera_snapshot`, which saves the current still for notifications
-- Each camera's device page links to the camera's own web interface
+- **Controls:** Enabled, Pause (30 s to 24 h, or indefinitely), Manual Recording, Snapshot to Database. Motion Detection and Reboot are optional.
+- **Sensors:** bitrate (main and sub stream) and last alert. Recording, Triggered and Alerting are optional.
+- Each camera's device page links to the camera's own web interface.
 
 **Server**
-- **Status**: Connection Health, Uptime, CPU, Memory, free space per drive, Warnings, Connections, plus read-only Host, Port, SSL, Username, Admin, Integration Version, Blue Iris Version and Support, Active Profile and Schedule, Cameras
-- **Controls**: Shield (Armed / Disarmed / Arming), Profile Hold, Restart Web Server, Restart AI, Reload Integration
-- **Blue Iris log**: new warnings and errors as `blueiris_log` events and a Last Message sensor
-- **Settings on the server device**, shown and changed live: Stream Type, HA Streaming, Stream Method, Stream Monitoring, Log Level, Blue Iris log reporting, auto reset defaults
+- **Status:** Connection Health, Uptime, CPU, Memory, free space per drive, warnings and connections. Read-only info: host, port, SSL, user, admin rights, versions, active profile and schedule.
+- **Controls:** Shield (Armed / Disarmed / Arming), Profile Hold, Restart Web Server, Restart AI, Reload Integration.
+- **Blue Iris log:** new warnings and errors arrive as `blueiris_log` events.
+- **Settings on the server device:** stream type, HA streaming, stream method, log level, and the auto reset defaults all live on the server device. You can see them and change them without reloading.
+
+![Camera device](screenshots/05-camera-device.png)
 
 **Streaming**
-- Stream types H264 (HLS), H264 TS, MJPEG, **RTSP** and **RTSP sub stream**
-- **HA Streaming** switch: Home Assistant's own stream (HLS / WebRTC) or the MJPEG view, switched without a restart
-- **Stream Method**: how session URLs are kept up to date (Fixed URL, Follow session, Follow session + audio, Login in URL)
-- **Stream monitoring** (optional): `blueiris_stream` events and a Stream Health sensor per Stream Method
+- **Stream types**: H264 (HLS), H264 TS, MJPEG, plus **RTSP** and **RTSP sub stream** from Blue Iris' web server port. RTSP skips Blue Iris' HLS step, which on my system was returning `5XX` errors to Home Assistant. RTSP was the smoothest and most reliable for me. fixed all my disconnect problems.
+- **HA Streaming switch:** turns Home Assistant's own stream (HLS / WebRTC) on or off for all cameras, without a restart.
+- **Stream Monitoring**: `blueiris_stream` events and a per-method Stream Health sensor, to help track down stream problems.
 
 **Setup**
-- Options as All / None / Choose… per section with item counts and checkbox lists; new cameras included automatically under All
-- A features page during setup
-- Diagnostics download with host, credentials, session and location redacted
+- Easier now: All / None / Choose… per section, with item counts and checkbox lists. Cameras added to Blue Iris later are picked up automatically under *All*.
+- Diagnostics download, with credentials, session and location redacted.
 
-### From the original integration
-
-- **Camera** per Blue Iris camera, group and system camera (All, Cycle), with live attributes (FPS, online, no signal count, error, ...)
-- **Binary sensors** per camera from MQTT: Motion, Audio, Connectivity, DIO, External, plus a server-level Alerts sensor
-- **Switches** for Blue Iris profiles and schedules (admin user)
-- **Services**: Trigger Camera, Move to Preset
-- SSL with self-signed certificates
+Everything from the original is still there: camera entities, the MQTT binary sensors (Motion, Audio, Connectivity, DIO, External), profile and schedule switches, Trigger Camera and Move to Preset.
 
 ## Installation
 
+The integration isn't in the default HACS list, so you add it as a custom repository. The button does that in one click:
+
 [![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Ltek&repository=ha-blueiris&category=integration)
 
-Click the button to add this repository to HACS, or in HACS → ⋮ → Custom repositories add `https://github.com/Ltek/ha-blueiris` as an **Integration**, then download "Blue Iris (Ltek)" and restart Home Assistant. Add it under Settings → Devices & Services.
+**MIGRATING from elad-bar's version?** In HACS, remove elad-bar's *repository* first. Don't delete the integration under Settings → Devices & Services. Then add this one. The config entry and entities carry over.
 
-Replacing an existing elad-bar install: remove that repository inside HACS first (don't delete the integration under Settings → Devices & Services), then add this one. The config entry and entities carry over.
+**Requirements:**
+- A Blue Iris user account. Many features need **admin** rights: controls, auto reset, the Blue Iris log, profiles and schedules.
+- MQTT is optional. You only need it for Blue Iris' motion, audio, DIO and external events.
 
-Requirements, setup, options and the server device settings are described in [SETUP.md](SETUP.md).
+Setup and all the options are documented in [SETUP.md](SETUP.md). The README describes every entity.
+
+## Good to know
+
+- **Many cameras on a dashboard:** some older browsers have a limit of 6 connections per server over plain HTTP, hit by MJPEG views. Turning on **HA Streaming** on the server device, together with `live_provider: ha` in Advanced Camera Card, avoids it. So does accessing HA over HTTPS / HTTP/2.
+- **Ring and other bridged cameras:** if they keep dropping with Blue Iris' *"Check FPS and key rates"* warning, try turning off **Limit decoding** for them in Blue Iris. That fixed it for my Ring doorbell.
+- **Frozen frames:** a camera that keeps sending the same frame at a normal frame rate can't be detected. Blue Iris still reports it as healthy.
+- I've tested everything against my own Blue Iris 5 setup, and with automated tests against a simulated Blue Iris server. Other Blue Iris versions may return some fields differently. If a sensor shows `unknown`, please open an issue with the diagnostics download attached.
 
 ## Components
 
@@ -372,9 +380,11 @@ Currently the Stream Component is a bit too ragged to use to cast Blue Iris vide
 
 [Example of configuration output](docs/configs/casting/ui-lovelace.yaml)
 
-## Contributors
+## Credit
 
-<a href="https://github.com/darkgrue">@darkgrue</a>
+Thanks to **elad-bar**, **kramttocs** and the other contributors. This fork is on elad-bar's code base.
+
+Upstream contributors: <a href="https://github.com/darkgrue">@darkgrue</a>
 
 ## Screenshots
 
