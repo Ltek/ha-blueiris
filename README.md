@@ -51,7 +51,9 @@ Current build: **v2026.10.26.45** · full history in [CHANGELOG.md](CHANGELOG.md
 
 ## Installation
 
-Click the HACS button above, or in HACS → ⋮ → Custom repositories add `https://github.com/Ltek/ha-blueiris` as an **Integration**, then download "Blue Iris (Ltek)" and restart Home Assistant. Add it under Settings → Devices & Services.
+[![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Ltek&repository=ha-blueiris&category=integration)
+
+Click the button to add this repository to HACS, or in HACS → ⋮ → Custom repositories add `https://github.com/Ltek/ha-blueiris` as an **Integration**, then download "Blue Iris (Ltek)" and restart Home Assistant. Add it under Settings → Devices & Services.
 
 Replacing an existing elad-bar install: remove that repository inside HACS first (don't delete the integration under Settings → Devices & Services), then add this one. The config entry and entities carry over.
 
